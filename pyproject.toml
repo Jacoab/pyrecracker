@@ -1,0 +1,25 @@
+[project]
+name = "pyrecracker"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Your Name",email = "you@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "requests-unixsocket (>=0.4.1,<0.5.0)"
+]
+
+[tool.poetry]
+packages = [{include = "pyrecracker", from = "src"}]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.0.2,<10.0.0)",
+    "pytest-mock (>=3.15.1,<4.0.0)"
+]
