@@ -37,7 +37,7 @@ class Command:
         return self
 
     @singledispatchmethod
-    def add_args(self, args) -> None:
+    def add_args(self, args) -> Self:
         """
         Adds multiple arguments to the command's command list. This method 
         can be chained to add multiple arguments.
@@ -86,7 +86,3 @@ class Command:
         except subprocess.CalledProcessError as e:
             error_message = f"Command '{str(self)}' failed with exit code {e.returncode}"
             raise RuntimeError(error_message) from e
-        
-
-def add_tap_device(tap_name: str) -> Command:
-    return Command("ip", sudo=True).add_args(["tuntap", "add", tap_name, "mode", "tap"])

@@ -12,16 +12,20 @@ def test_simple_command_str():
 def test_complex_command_str_list_args():
 	cmd = Command("ip", sudo=True).add_args(["link", "add", "name", "eth0", "type", "dummy"])
 	assert str(cmd) == "sudo ip link add name eth0 type dummy"
-	
-
-def test_complex_command_str_list_args():
-	cmd = Command("ls", sudo=True).add_args(["-l", "-a", "/tmp"])
-	assert str(cmd) == "sudo ls -l -a /tmp"
 
 
 def test_complex_command_str_string_args():
 	cmd = Command("ls", sudo=True).add_args("-l -a /tmp")
 	assert str(cmd) == "sudo ls -l -a /tmp"
+	
+
+def test_complex_command_method_chaining():
+	cmd = Command("ip", sudo=True) \
+	    .add_arg("link") \
+	    .add_arg("add") \
+        .add_args(["name", "eth0"]) \
+	    .add_args("type dummy")
+	assert str(cmd) == "sudo ip link add name eth0 type dummy"
 	
 
 def test_command_call_failure(monkeypatch):
