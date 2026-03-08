@@ -1,3 +1,4 @@
+import shutil
 from logging import getLogger
 
 from pyrecracker.cmd import Command
@@ -60,6 +61,48 @@ class HostEnvironment:
         cmd = Command("ip", sudo=True) \
             .add_arg("link") \
             .add_args(["set", tap_name, "up"])
+        self.__exec_stack.append(cmd)
+
+    def mkdir(self, path: str) -> None:
+        """
+        Create a directory at the specified path in the host environment.
+
+        Args:
+            path (str): The path where the directory should be created.
+        """
+        cmd = Command("mkdir").add_arg(path)
+        self.__exec_stack.append(cmd)
+
+    def mount(self, source: str, target: str) -> None:
+        """
+        Mount a filesystem at the specified target path in the host environment.
+
+        Args:
+            source (str): The source of the filesystem to be mounted.
+            target (str): The target path where the filesystem should be mounted.
+        """
+        cmd = Command("mount", sudo=True).add_args([source, target])
+        self.__exec_stack.append(cmd)
+
+    def unmount(self, path: str) -> None:
+        """
+        Unmount a filesystem at the specified target path in the host environment.
+
+        Args:
+            path (str): The path of the filesystem to be unmounted.
+        """
+        cmd = Command("umount", sudo=True).add_arg(path)
+        self.__exec_stack.append(cmd)
+
+    def copy(self, source: str, target: str) -> None:
+        """
+        Copy a file from source to target path in the host environment.
+
+        Args:
+            source (str): The path of the file to be copied.
+            target (str): The destination path where the file should be copied.
+        """
+        cmd = Command("cp", sudo=True).add_args([source, target])
         self.__exec_stack.append(cmd)
 
     def exec(self) -> None:
