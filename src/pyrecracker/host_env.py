@@ -1,10 +1,26 @@
-import shutil
+from dataclasses import dataclass
+from typing import Callable, Optional
 from logging import getLogger
 
 from pyrecracker.cmd import Command
 
 
 logger = getLogger(__name__)
+
+@dataclass
+class EnvironmentCall:
+    """
+    A dataclass to represent a call to be made in the host environment. This class
+    encapsulates the command to be executed and an optional callback function that
+    can be used to perform cleanup actions if the command execution fails.
+
+    Attributes:
+        command (Command): The Command instance representing the command to be executed.
+        cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
+            if the command execution fails.
+    """
+    command: Command
+    cleanup: Optional[Callable[[], None]] = None
 
 
 class HostEnvironment:
@@ -17,15 +33,15 @@ class HostEnvironment:
     Attributes:
         __continue_on_error (bool): True if command execution should continue on failure
             else false.
-        __exec_stack (list[Command]): The list of Command instances to be called.
+        __exec_stack (list[EnvironmentCall]): The Command call stack.
     """
 
     def __init__(self, continue_on_error: bool = False) -> None:
         self.__continue_on_error: bool = continue_on_error
-        self.__exec_stack: list[Command] = []
+        self.__exec_stack: list[EnvironmentCall] = []
 
     @property
-    def exec_stack(self) -> list[Command]:
+    def exec_stack(self) -> list[EnvironmentCall]:
         """
         Returns the list of Command instances that are scheduled for execution.
 
@@ -34,87 +50,145 @@ class HostEnvironment:
         """
         return self.__exec_stack
 
-    def add_tap_device(self, tap_name: str) -> None:
+    def add_tap_device(
+        self, 
+        tap_name: str, 
+        cleanup: Optional[Callable[[], None]] = None,
+    ) -> None:
         """
         Add a TAP virtual network device to the host environment.
+
+        Args:
+            tap_name (str): The name of the TAP device to be added.
+            cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
+                if the command execution fails.
         """
         cmd = Command("ip", sudo=True) \
             .add_arg("tuntap") \
             .add_args(["add", tap_name]) \
             .add_args(["mode", "tap"])
-        self.__exec_stack.append(cmd)
+        self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
 
-    def add_tap_address(self, address: str, tap_name: str) -> None:
+    def add_tap_address(
+        self, 
+        address: str, 
+        tap_name: str, 
+        cleanup: Optional[Callable[[], None]] = None,
+    ) -> None:
         """
         Add an IP address to a TAP virtual network device in the host environment.
+
+        Args:
+            address (str): The IP address to be added to the TAP device.
+            tap_name (str): The name of the TAP device to which the IP address should be added.
+            cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
+                if the command execution fails.
         """
         cmd = Command("ip", sudo=True) \
             .add_arg("addr") \
             .add_args(["add", f"{address}/24"]) \
             .add_args(["dev", tap_name])
-        self.__exec_stack.append(cmd)
+        self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
 
-    def set_tap_up(self, tap_name: str) -> None:
+    def set_tap_up(
+        self, 
+        tap_name: str, 
+        cleanup: Optional[Callable[[], None]] = None,
+    ) -> None:
         """
         Set the TAP virtual network device status to up in the host environment.
+
+        Args:
+            tap_name (str): The name of the TAP device.
+            cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
+                if the command execution fails.
         """
         cmd = Command("ip", sudo=True) \
             .add_arg("link") \
             .add_args(["set", tap_name, "up"])
-        self.__exec_stack.append(cmd)
+        self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
 
-    def mkdir(self, path: str) -> None:
+    def mkdir(
+        self, 
+        path: str,
+        cleanup: Optional[Callable[[], None]] = None,
+    ) -> None:
         """
         Create a directory at the specified path in the host environment.
 
         Args:
             path (str): The path where the directory should be created.
+            cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
+                if the command execution fails.
         """
         cmd = Command("mkdir").add_arg(path)
-        self.__exec_stack.append(cmd)
+        self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
 
-    def mount(self, source: str, target: str) -> None:
+    def mount(
+        self, 
+        source: str, 
+        target: str,
+        cleanup: Optional[Callable[[], None]] = None    
+    ) -> None:
         """
         Mount a filesystem at the specified target path in the host environment.
 
         Args:
             source (str): The source of the filesystem to be mounted.
             target (str): The target path where the filesystem should be mounted.
+            cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
+                if the command execution fails.
         """
         cmd = Command("mount", sudo=True).add_args([source, target])
-        self.__exec_stack.append(cmd)
+        self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
 
-    def unmount(self, path: str) -> None:
+    def unmount(
+        self, 
+        path: str,
+        cleanup: Optional[Callable[[], None]] = None,
+    ) -> None:
         """
         Unmount a filesystem at the specified target path in the host environment.
 
         Args:
             path (str): The path of the filesystem to be unmounted.
+            cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
+                if the command execution fails.
         """
         cmd = Command("umount", sudo=True).add_arg(path)
-        self.__exec_stack.append(cmd)
+        self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
 
-    def copy(self, source: str, target: str) -> None:
+    def copy(
+        self, 
+        source: str, 
+        target: str,
+        cleanup: Optional[Callable[[], None]] = None,
+    ) -> None:
         """
         Copy a file from source to target path in the host environment.
 
         Args:
             source (str): The path of the file to be copied.
             target (str): The destination path where the file should be copied.
+            cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
+                if the command execution fails.
         """
         cmd = Command("cp", sudo=True).add_args([source, target])
-        self.__exec_stack.append(cmd)
+        self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
 
     def exec(self) -> None:
         """
         Executes all commands in the execution stack.  Commands execution can stop
         on command failure or continue based on the value of the __continue_on_error.
         """
-        for cmd in self.__exec_stack:
+        for env_call in self.__exec_stack:
             try:
-                logger.debug(f"Executing environment command: {cmd}")
-                cmd.call()
+                logger.debug(f"Executing environment command: {env_call.command}")
+                env_call.command.call()
             except RuntimeError as e:
                 logger.error(f"Environment execution error: {e}")
                 if not self.__continue_on_error:
+                    if env_call.cleanup is not None:
+                        logger.debug("Executing cleanup function for failed command")
+                        env_call.cleanup()
                     break

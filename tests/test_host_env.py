@@ -62,6 +62,7 @@ def test_copy(executed_and_fake_call):
 	env.exec()
 	assert any("sudo cp /tmp/source /tmp/target" in cmd for cmd in executed)
 
+
 def test_multiple_commands(executed_and_fake_call):
 	executed = executed_and_fake_call
 	env = HostEnvironment()
@@ -72,3 +73,14 @@ def test_multiple_commands(executed_and_fake_call):
 	assert any("sudo ip tuntap add tap1 mode tap" in cmd for cmd in executed)
 	assert any("sudo ip addr add 192.168.1.10/24 dev tap1" in cmd for cmd in executed)
 	assert any("sudo ip link set tap1 up" in cmd for cmd in executed)
+
+
+def test_cleanup_handler_on_failure(monkeypatch):
+	cleanup_called = []
+	def fake_call(self):
+		raise RuntimeError("Simulated failure")
+	monkeypatch.setattr(Command, "call", fake_call)
+	env = HostEnvironment()
+	env.add_tap_device("tap_fail", cleanup=lambda: cleanup_called.append(True))
+	env.exec()
+	assert cleanup_called == [True]
