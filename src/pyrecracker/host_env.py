@@ -65,7 +65,7 @@ class HostEnvironment:
         """
         cmd = Command("ip", sudo=True) \
             .add_arg("tuntap") \
-            .add_args(["add", tap_name]) \
+            .add_args(["add", "dev", tap_name]) \
             .add_args(["mode", "tap"])
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
 
