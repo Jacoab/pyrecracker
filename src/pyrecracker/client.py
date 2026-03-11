@@ -1,12 +1,15 @@
 from dataclasses import asdict
+from typing import Any
 
 import requests_unixsocket
 
 from pyrecracker.client_types import (
+    VM,
     MachineConfiguration, 
     BootSource, 
     Drive, 
-    InstanceActionInfo
+    InstanceActionInfo,
+    NetworkInterface
 )
 
 
@@ -36,6 +39,21 @@ class FirecrackerClient:
         response = self.session.put(f"{self.socket_url}/{endpoint}", json=data)
         response.raise_for_status()
 
+    def __body_to_dict(self, body: Any) -> dict:
+        """
+        Helper method to convert a dataclass instance to a dictionary.
+
+        Args:
+            body (Any): The dataclass instance to be converted.
+
+        Returns:
+            dict: The dictionary representation of the dataclass instance.
+        """
+        return asdict(
+            body, 
+            dict_factory=lambda x: {k: v for (k, v) in x if v is not None}
+        )
+
     def put_machine_config(self, machine_config: MachineConfiguration) -> None:
         """
         Configure the machine with the specified number of vCPUs and memory size.
@@ -45,7 +63,7 @@ class FirecrackerClient:
             mem_size_mib (int): The amount of memory in MiB to allocate to the machine.
             ht_enabled (bool): Whether to enable hyper-threading for the machine.
         """
-        self.__put("machine-config", asdict(machine_config))
+        self.__put("machine-config", self.__body_to_dict(machine_config))
 
     def put_boot_source(self, boot_source: BootSource) -> None:
         """
@@ -55,7 +73,7 @@ class FirecrackerClient:
             kernel_image_path (str): The path to the kernel image to be used as the boot source.
             boot_args (str): The kernel command line arguments to be passed to the kernel on boot.
         """
-        self.__put("boot-source", asdict(boot_source))
+        self.__put("boot-source", self.__body_to_dict(boot_source))
 
     def put_drives(self, drive: Drive) -> None:
         """
@@ -67,7 +85,16 @@ class FirecrackerClient:
             is_root_device (str): True if disk should be the root file drive else False
             is_read_only (bool): Whether the drive should be configured as read-only.
         """
-        self.__put(f"drives/{drive.drive_id}", asdict(drive))
+        self.__put(f"drives/{drive.drive_id}", self.__body_to_dict(drive))
+
+    def put_network_interfaces(self, network_interface: NetworkInterface) -> None:
+        """
+        Configure a network interface for the machine.
+
+        Args:
+            network_interface (NetworkInterface): The network interface configuration.
+        """
+        self.__put(f"network-interfaces/{network_interface.iface_id}", self.__body_to_dict(network_interface))   
 
     def put_actions(self, instance_action_info: InstanceActionInfo) -> None:
         """
@@ -76,4 +103,13 @@ class FirecrackerClient:
         Args:
             action_type (str): The type of action to be performed. Valid values are "InstanceStart" and "InstanceStop".
         """
-        self.__put("actions", asdict(instance_action_info))
+        self.__put("actions", self.__body_to_dict(instance_action_info))
+
+    def put_vm(self, vm: VM) -> None:
+        """
+        Configure the VM with the specified configuration.
+
+        Args:
+            vm (VM): The VM configuration to be applied.
+        """
+        self.__put("vm", self.__body_to_dict(vm))

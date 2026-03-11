@@ -109,3 +109,37 @@ class InstanceActionInfo:
                 "InstanceActionInfo.action_type must be one of 'FlushMetrics', "
                 "'InstanceStart', or 'SendCtrlAltDel'"
             )
+        
+
+@dataclass
+class NetworkInterface:
+    """
+    Represents the request body for the Firecracker Network Interface API.
+
+    Attributes:
+        host_dev_name (str): Host level path for the guest network interface (e.g. tap0).
+        iface_id (str): Unique identifier for the network interface within Firecracker.
+        guest_mac (Optional[str]): MAC address to be assigned to the guest network interface.
+    """
+    host_dev_name: str
+    iface_id: str
+    guest_mac: Optional[str] = None
+    #rx_rate_limiter: Optional[RateLimiter] = None This needs to be a ref
+    #tx_rate_limiter: Optional[RateLimiter] = None This needs to be a ref
+
+
+@dataclass
+class VM:
+    """
+    Represents the state of a Firecracker microVM.
+
+    Attributes:
+        state (str): The current state of the microVM
+    """
+    state: str
+
+    def __post__init__(self):
+        if self.state not in ["Paused", "Resume"]:
+            raise ValueError(
+                "VM.state must be one of 'Paused' or 'Resume'"
+            )
