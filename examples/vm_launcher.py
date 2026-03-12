@@ -1,4 +1,5 @@
 import signal
+from time import sleep
 
 from pyrecracker.host_env import HostEnvironment
 from pyrecracker.client import FirecrackerClient
@@ -82,12 +83,17 @@ def main():
         action_info = InstanceActionInfo(action_type="SendCtrlAltDel")
         client.put_actions(action_info)
         print("VM stopped successfully!")
+        print("Cleaning up host environment...")
+        sleep(5)
+        host_env.rm(SOCKET_PATH)
+        host_env.del_tap_device(TAP_DEV)
+        host_env.exec()
+        print("Exiting.")
         exit(0)
         
     signal.signal(signal.SIGINT, sigterm_handler)
     while True:
         pass
-
 
 if __name__ == "__main__":
     main()

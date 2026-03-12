@@ -69,6 +69,25 @@ class HostEnvironment:
             .add_args(["mode", "tap"])
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
 
+    def del_tap_device(
+        self, 
+        tap_name: str, 
+        cleanup: Optional[Callable[[], None]] = None,
+    ) -> None:
+        """
+        Delete a TAP virtual network device on the host environment.
+
+        Args:
+            tap_name (str): The name of the TAP device to be added.
+            cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
+                if the command execution fails.
+        """
+        cmd = Command("ip", sudo=True) \
+            .add_arg("tuntap") \
+            .add_args(["del", "dev", tap_name]) \
+            .add_args(["mode", "tap"])
+        self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+
     def add_tap_address(
         self, 
         address: str, 
@@ -176,6 +195,16 @@ class HostEnvironment:
         cmd = Command("cp", sudo=True).add_args([source, target])
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
 
+    def rm(self, target: str, cleanup: Optional[Callable[[], None]] = None,):
+        """
+        Remove the directory or file from the host environment.
+
+        Args:
+            target (str): The path of the directory or file to be deleted
+        """
+        cmd = Command("rm", sudo=True).add_args(["-f", target])
+        self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+
     def exec(self) -> None:
         """
         Executes all commands in the execution stack.  Commands execution can stop
@@ -192,3 +221,5 @@ class HostEnvironment:
                         logger.debug("Executing cleanup function for failed command")
                         env_call.cleanup()
                     break
+
+        self.__exec_stack = []
