@@ -25,8 +25,16 @@ class FirecrackerClient:
         Args:
             socket_path (str): The path to the Firecracker API Unix socket.
         """
-        self.session = requests_unixsocket.Session()
-        self.socket_url = f"http+unix://{socket_path.replace('/', '%2F')}"
+        self.__session = requests_unixsocket.Session()
+        self.__socket_path = socket_path
+        self.__socket_url = f"http+unix://{socket_path.replace('/', '%2F')}"
+
+    @property
+    def socket_path(self) -> str:
+        """
+        Get the socket path for the Firecracker API.
+        """
+        return self.__socket_path
 
     def __put(self, endpoint: str, data: dict) -> None:
         """
@@ -36,7 +44,7 @@ class FirecrackerClient:
             endpoint (str): The API endpoint to which the request should be sent.
             data (dict): The JSON data to be included in the PUT request.
         """
-        response = self.session.put(f"{self.socket_url}/{endpoint}", json=data)
+        response = self.__session.put(f"{self.__socket_url}/{endpoint}", json=data)
         response.raise_for_status()
 
     def __body_to_dict(self, body: Any) -> dict:
