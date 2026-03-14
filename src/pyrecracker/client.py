@@ -10,7 +10,8 @@ from pyrecracker.client_types import (
     Drive, 
     InstanceActionInfo,
     NetworkInterface,
-    SnapshotCreateParams
+    SnapshotCreateParams,
+    SnapshotLoadParams
 )
 
 
@@ -131,3 +132,12 @@ class FirecrackerClient:
             snapshot_create_params (SnapshotCreateParams): The parameters for creating the snapshot.
         """
         self.__put("snapshot/create", self.__body_to_dict(snapshot_create_params))
+
+    def put_snapshot_load(self, snapshot_load_params: SnapshotLoadParams) -> None:
+        """
+        Load a snapshot of the VM.
+
+        Args:
+            snapshot_load_params (SnapshotLoadParams): The parameters for loading the snapshot.
+        """
+        self.__put("snapshot/load", self.__body_to_dict(snapshot_load_params))

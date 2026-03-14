@@ -7,7 +7,8 @@ from pyrecracker.client_types import (
     BootSource, 
     Drive, 
     InstanceActionInfo, 
-    SnapshotCreateParams, 
+    SnapshotCreateParams,
+    SnapshotLoadParams, 
 )
 
 
@@ -82,3 +83,14 @@ def test_put_snapshot_create(mock_session):
 	assert "snapshot/create" in args[0]
 	assert kwargs["json"]["snapshot_path"] == "/path/to/snapshot"
 	assert kwargs["json"]["mem_file_path"] == "/path/to/memfile"
+
+
+def test_put_snapshot_load(mock_session):
+	client = FirecrackerClient("/tmp/firecracker.socket")
+	snapshot_load_params = SnapshotLoadParams(snapshot_path="/path/to/snapshot", resume_vm=True)
+	client.put_snapshot_load(snapshot_load_params)
+	mock_session.put.assert_called_once()
+	args, kwargs = mock_session.put.call_args
+	assert "snapshot/load" in args[0]
+	assert kwargs["json"]["snapshot_path"] == "/path/to/snapshot"
+	assert kwargs["json"]["resume_vm"] is True

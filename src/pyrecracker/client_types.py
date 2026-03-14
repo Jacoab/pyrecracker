@@ -153,7 +153,7 @@ class SnapshotCreateParams:
     Attributes:
         mem_file_path (str): The path on the host where the memory file will be stored.
         snapshot_path (str): The path on the host where the snapshot will be stored.
-        snapshot_type (str): The type of snapshot to create ('Full' or 'Diff').
+        snapshot_type (Optional[str]): The type of snapshot to create ('Full' or 'Diff').
     """
     snapshot_path: str
     mem_file_path: str
@@ -164,3 +164,23 @@ class SnapshotCreateParams:
             raise ValueError(
                 "SnapshotCreateParams.snapshot_type must be either 'Full' or 'Diff'"
             )
+
+
+@dataclass
+class SnapshotLoadParams:
+    """
+    Represents the request body for the Firecracker Load Snapshot API.
+
+    Attributes:
+        snapshot_path (str): Path to the file that contains the microVM state to be loaded.
+        track_dirty_pages (Optional[bool]): Whether to track dirty pages after loading the snapshot.
+        mem_file_path (Optional[str]): The path on the host that contains the guest memory to be loaded.
+        resume_vm (Optional[bool]): Whether to resume the VM immediately after loading the snapshot.
+    """
+    snapshot_path: str
+    track_dirty_pages: Optional[bool] = None
+    mem_file_path: Optional[str] = None
+    # mem_backend: Optional[MemoryBackend] = None This needs to be a ref to another dataclass
+    resume_vm: Optional[bool] = None
+    # network_overrides: Optional[List[NetworkOverride]] = None This needs to be a ref to a list of dataclasses
+    # vsock_override: Optional[VsockOverride] = None This needs to be a ref to another dataclass
