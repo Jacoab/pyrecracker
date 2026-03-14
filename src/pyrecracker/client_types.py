@@ -143,3 +143,24 @@ class VM:
             raise ValueError(
                 "VM.state must be one of 'Paused' or 'Resume'"
             )
+
+
+@dataclass
+class SnapshotCreateParams:
+    """
+    Represents the request body for the Firecracker Create Snapshot API.
+
+    Attributes:
+        mem_file_path (str): The path on the host where the memory file will be stored.
+        snapshot_path (str): The path on the host where the snapshot will be stored.
+        snapshot_type (str): The type of snapshot to create ('Full' or 'Diff').
+    """
+    snapshot_path: str
+    mem_file_path: str
+    snapshot_type: Optional[str] = None
+
+    def __post__init__(self):
+        if self.snapshot_type not in ["Full", "Diff"]:
+            raise ValueError(
+                "SnapshotCreateParams.snapshot_type must be either 'Full' or 'Diff'"
+            )

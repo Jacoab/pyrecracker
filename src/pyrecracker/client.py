@@ -9,7 +9,8 @@ from pyrecracker.client_types import (
     BootSource, 
     Drive, 
     InstanceActionInfo,
-    NetworkInterface
+    NetworkInterface,
+    SnapshotCreateParams
 )
 
 
@@ -121,3 +122,12 @@ class FirecrackerClient:
             vm (VM): The VM configuration to be applied.
         """
         self.__put("vm", self.__body_to_dict(vm))
+
+    def put_snapshot_create(self, snapshot_create_params: SnapshotCreateParams) -> None:
+        """
+        Create a snapshot of the VM.
+
+        Args:
+            snapshot_create_params (SnapshotCreateParams): The parameters for creating the snapshot.
+        """
+        self.__put("snapshot/create", self.__body_to_dict(snapshot_create_params))
