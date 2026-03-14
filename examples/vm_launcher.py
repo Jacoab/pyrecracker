@@ -7,9 +7,8 @@ from pyrecracker.vm import VMManager
 
 def main():
     parser = argparse.ArgumentParser(description="Launch a Firecracker VM with custom rootfs and kernel.")
-    parser.add_argument('--base-rootfs', type=str, help='Path to the base rootfs image')
     parser.add_argument('--work-rootfs', type=str, help='Path to the working rootfs image')
-    parser.add_argument('--kernel', type=str, default="../firecracker/vmlinux-6.1.155", help='Path to the kernel image')
+    parser.add_argument('--kernel', type=str, help='Path to the kernel image')
     args = parser.parse_args()
 
     vm = VMManager("/tmp/firecracker.sock", args.kernel)

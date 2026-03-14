@@ -41,11 +41,13 @@ class VMManager:
             vcpu_count=1, 
             mem_size_mib=128
         )
-        self.__drive: Drive = Drive(drive_id="rootfs", is_root_device=True)
+        self.__drive = Drive(drive_id="rootfs", is_root_device=True)
         self.__network_interface = NetworkInterface(iface_id="eth0", host_dev_name="tap0")
 
         self.__host_ip: Optional[str] = None
         self.__guest_ip: Optional[str] = None
+
+        self.__host_env_cleanup_pause: int = 2
 
     @property
     def socket_path(self) -> str:
@@ -285,6 +287,17 @@ class VMManager:
     def guest_ip(self, guest_ip: str) -> None:
         self.__guest_ip = guest_ip
 
+    @property
+    def host_env_cleanup_pause(self) -> int:
+        """
+        Time in seconds to pause before cleaning up the host environment after stopping the VM.
+        """
+        return self.__host_env_cleanup_pause
+    
+    @host_env_cleanup_pause.setter
+    def host_env_cleanup_pause(self, host_env_cleanup_pause: int) -> None:
+        self.__host_env_cleanup_pause = host_env_cleanup_pause
+    
     def configure(self) -> None:
         """
         Configure the VM with the current settings.  This will 
@@ -322,6 +335,7 @@ class VMManager:
         """
         action_info = InstanceActionInfo(action_type="SendCtrlAltDel")
         self.__client.put_actions(action_info)
+        sleep(self.host_env_cleanup_pause)
 
         self.__host_env.rm(self.socket_path)
         self.__host_env.del_tap_device(self.host_dev_name)
