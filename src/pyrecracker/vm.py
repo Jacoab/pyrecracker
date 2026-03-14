@@ -3,6 +3,7 @@ from time import sleep
 
 from pyrecracker.client import FirecrackerClient
 from pyrecracker.client_types import (
+    VM,
     MachineConfiguration, 
     BootSource, 
     Drive, 
@@ -366,6 +367,20 @@ class VMManager:
             resume_vm=resume_vm
         )
         self.__client.put_snapshot_load(snapshot_load_params)
+
+    def pause(self):
+        """
+        Pause the VM.
+        """
+        vm = VM(state="Paused")
+        self.__client.put_vm(vm)
+
+    def resume(self):
+        """
+        Resume the VM.
+        """
+        vm = VM(state="Resume")
+        self.__client.put_vm(vm)
 
     def start(self) -> None:
         """
