@@ -7,7 +7,9 @@ from pyrecracker.client_types import (
     BootSource, 
     Drive, 
     InstanceActionInfo,
-    NetworkInterface
+    NetworkInterface,
+    SnapshotCreateParams,
+    SnapshotLoadParams
 )
 from pyrecracker.host_env import HostEnvironment
 
@@ -321,6 +323,49 @@ class VMManager:
         self.__client.put_boot_source(self.__boot_source)
         self.__client.put_drives(self.__drive)
         self.__client.put_network_interfaces(self.__network_interface)
+
+    def create_snapshot(
+        self, 
+        snapshot_path: str, 
+        mem_file_path: str, 
+        snapshot_type: str = "Full"
+    ) -> None:
+        """
+        Create a snapshot of the VM.
+
+        Args:
+            mem_file_path (str): The path on the host where the memory file will be stored.
+        snapshot_path (str): The path on the host where the snapshot will be stored.
+        snapshot_type (str): The type of snapshot to create ('Full' or 'Diff').
+        """
+        snapshot_params = SnapshotCreateParams(
+            snapshot_path=snapshot_path,
+            mem_file_path=mem_file_path,
+            snapshot_type=snapshot_type
+        )
+        self.__client.put_snapshot_create(snapshot_params)
+
+    def load_snapshot(
+        self, 
+        snapshot_path: str, 
+        mem_file_path: Optional[str] = None,
+        resume_vm: bool = False
+    ) -> None:
+        """
+        Load a snapshot of the VM.
+
+        Args:
+            snapshot_path (str): Path to the file that contains the microVM state to be loaded.
+            mem_file_path (Optional[str]): The path on the host that contains the guest memory to be loaded.
+            resume_vm (bool): Whether to resume the VM immediately after loading the snapshot.
+        """
+        snapshot_load_params = SnapshotLoadParams(
+            snapshot_path=snapshot_path,
+            track_dirty_pages=self.track_dirty_pages,
+            mem_file_path=mem_file_path,
+            resume_vm=resume_vm
+        )
+        self.__client.put_snapshot_load(snapshot_load_params)
 
     def start(self) -> None:
         """
