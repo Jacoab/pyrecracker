@@ -1,5 +1,6 @@
 from typing import Optional
 from time import sleep
+from requests.exceptions import ConnectionError
 
 from pyrecracker.client import FirecrackerClient
 from pyrecracker.client_types import (
@@ -23,17 +24,23 @@ class VMManager:
     are also provided.
 
     Attributes:
-        __host_env: HostEnvironment - Host environment manager
-        __client: FirecrackerClient - Client for interacting with the Firecracker API
-        __boot_source: BootSource - Boot source configuration for the VM
-        __machine_config: MachineConfiguration - Machine configuration for the VM
-        __drive: Drive - Drive configuration for the VM
-        __network_interface: NetworkInterface - Network interface configuration for the VM
-        __host_ip: Optional[str] - Host IP address for the network interface
-        __guest_ip: Optional[str] - Guest IP address for the network interface
+        __host_env (HostEnvironment): Host environment manager
+        __client (FirecrackerClient): Client for interacting with the Firecracker API
+        __boot_source (BootSource): Boot source configuration for the VM
+        __machine_config (MachineConfiguration): Machine configuration for the VM
+        __drive (Drive): Drive configuration for the VM
+        __network_interface (NetworkInterface): Network interface configuration for the VM
+        __host_ip (Optional[str]): Host IP address for the network interface
+        __guest_ip (Optional[str]): Guest IP address for the network interface
     """
-    def __init__(self, socket_path: str, kernel_image_path: str) -> None:
+    def __init__(
+        self, 
+        socket_path: str, kernel_image_path: str, 
+        firecracker_logs_path: str = "logs/firecracker.log"
+    ) -> None:
         self.__host_env = HostEnvironment()
+        self.__host_env.firecracker(api_socket=socket_path, logs_path=firecracker_logs_path)
+        self.__host_env.exec()
         self.__client = FirecrackerClient(socket_path)
         
         self.__boot_source = BootSource(
@@ -394,9 +401,14 @@ class VMManager:
         Stops the microVM.
         """
         action_info = InstanceActionInfo(action_type="SendCtrlAltDel")
-        self.__client.put_actions(action_info)
+        try:
+            self.__client.put_actions(action_info)
+        except ConnectionError:
+            # Connection may be closed if Firecracker is already shutting down
+            pass
         sleep(self.host_env_cleanup_pause)
 
         self.__host_env.rm(self.socket_path)
         self.__host_env.del_tap_device(self.host_dev_name)
         self.__host_env.exec()
+        self.__host_env.stop_processes()

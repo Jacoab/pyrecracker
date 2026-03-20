@@ -35,5 +35,5 @@ def test_command_call_failure(monkeypatch):
 
 	monkeypatch.setattr("subprocess.run", fake_run)
 	with pytest.raises(RuntimeError) as exc:
-		cmd.call()
+		cmd.run()
 	assert "failed with exit code 42" in str(exc.value)

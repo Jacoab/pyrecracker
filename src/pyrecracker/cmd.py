@@ -1,6 +1,7 @@
 import subprocess
 from functools import singledispatchmethod
-from typing import Self
+from typing import Optional, Self
+from pathlib import Path
 
 
 class Command:
@@ -74,7 +75,7 @@ class Command:
         self.__command_list.extend(args_list)
         return self
     
-    def call(self) -> None:
+    def run(self) -> None:
         """
         Executes the command using subprocess.run.
 
@@ -83,6 +84,41 @@ class Command:
         """
         try:
             subprocess.run(self.__command_list, check=True)
+        except subprocess.CalledProcessError as e:
+            error_message = f"Command '{str(self)}' failed with exit code {e.returncode}"
+            raise RuntimeError(error_message) from e
+        
+    def popen(self, log_file_path: Optional[str] = None) -> subprocess.Popen:
+        """
+        Executes the command by spawning a background process using subprocess.Popen.
+        Returns the Popen object to allow the caller to maintain a reference to the process.
+
+        Returns:
+            subprocess.Popen: The Popen object representing the spawned process.
+            log_file_path (str): The path to the log file where the command's 
+                output will be written.
+
+        Raises:
+            RuntimeError: If the command execution fails, a RuntimeError is raised with the command error code.
+        """
+        try:
+            if log_file_path is None:
+                process = subprocess.Popen(
+                    self.__command_list, 
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL
+                )
+                return process
+            path = Path(log_file_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w") as log_file:
+                process = subprocess.Popen(
+                    self.__command_list, 
+                    stdin=subprocess.DEVNULL,
+                    stdout=log_file,
+                    stderr=log_file
+                )
+                return process
         except subprocess.CalledProcessError as e:
             error_message = f"Command '{str(self)}' failed with exit code {e.returncode}"
             raise RuntimeError(error_message) from e

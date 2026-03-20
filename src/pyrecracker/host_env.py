@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Callable, Optional
 from logging import getLogger
+import subprocess
 
 from pyrecracker.cmd import Command
 
@@ -16,10 +17,16 @@ class EnvironmentCall:
 
     Attributes:
         command (Command): The Command instance representing the command to be executed.
+        popen (bool): Determines whether the environment call should be spawned as a
+            subprocess or not (default False)
+        process_log_path (Optional[str]): An optional file path to log the output of the
+            command if it is spawned as a subprocess.
         cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
             if the command execution fails.
     """
     command: Command
+    popen: bool = False
+    process_log_path: Optional[str] = None
     cleanup: Optional[Callable[[], None]] = None
 
 
@@ -34,11 +41,17 @@ class HostEnvironment:
         __continue_on_error (bool): True if command execution should continue on failure
             else false.
         __exec_stack (list[EnvironmentCall]): The Command call stack.
+        __process_stack (list[subprocess.Popen]): The list of subprocesses spawned by 
+            the environment.
+        __process_stop_timeout (int): The number of seconds to wait for a process to stop before
+            force killing it.
     """
 
-    def __init__(self, continue_on_error: bool = False) -> None:
+    def __init__(self, continue_on_error: bool = False, process_stop_timeout: int = 5) -> None:
         self.__continue_on_error: bool = continue_on_error
         self.__exec_stack: list[EnvironmentCall] = []
+        self.__process_stack: list[subprocess.Popen] = []
+        self.__process_stop_timeout: int = process_stop_timeout
 
     @property
     def exec_stack(self) -> list[EnvironmentCall]:
@@ -49,6 +62,17 @@ class HostEnvironment:
             list[Command]: The list of Command instances to be executed.
         """
         return self.__exec_stack
+    
+    @property
+    def process_stack(self) -> list[subprocess.Popen]:
+        """
+        Returns the list of subprocess.Popen instances that have been spawned by the environment.
+
+        Returns:
+            list[subprocess.Popen]: The list of subprocess.Popen instances representing
+                the spawned processes.
+        """
+        return self.__process_stack
 
     def add_tap_device(
         self, 
@@ -195,25 +219,77 @@ class HostEnvironment:
         cmd = Command("cp", sudo=True).add_args([source, target])
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
 
-    def rm(self, target: str, cleanup: Optional[Callable[[], None]] = None,):
+    def rm(self, target: str, cleanup: Optional[Callable[[], None]] = None) -> None:
         """
         Remove the directory or file from the host environment.
 
         Args:
             target (str): The path of the directory or file to be deleted
+            cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
+                if the command execution fails.
         """
         cmd = Command("rm", sudo=True).add_args(["-f", target])
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
 
+    def firecracker(
+        self, 
+        api_socket: str = "/tmp/firecracker.sock",
+        logs_path: Optional[str] = None,
+        cleanup: Optional[Callable[[], None]] = None
+    ) -> None:
+        """
+        Run the Firecracker virtual machine manager and make the Firecracker API
+        availble on the provided unix socket path.
+
+        Args:
+            api_socket (str): Path the the unix socket to run the Firecracker API on
+                (default is '/tmp/firecracker.sock')
+            logs_path (Optional[str]): An optional file path to log the output of the
+                Firecracker process.
+            cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
+                if the command execution fails.
+        """
+        cmd = Command("firecracker", sudo=True).add_args(["--api-sock", api_socket])
+        self.__exec_stack.append(
+            EnvironmentCall(
+                cmd, 
+                popen=True, 
+                process_log_path=logs_path, 
+                cleanup=cleanup
+            )
+        )
+
+    def stop_processes(self) -> None:
+        """
+        Stops all running processes that were spawned with popen.
+        Handles cases where processes have already terminated.
+        """
+        for process in self.__process_stack:
+            try:
+                if process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=self.__process_stop_timeout)
+                    except subprocess.TimeoutExpired:
+                        logger.warning(f"Process {process.pid} did not terminate gracefully, killing it")
+                        process.kill()
+                        process.wait()
+            except (ProcessLookupError, OSError) as e:
+                logger.debug(f"Error stopping process: {e}")
+
     def exec(self) -> None:
         """
-        Executes all commands in the execution stack.  Commands execution can stop
+        Executes all commands in the execution stack.  Command execution can stop
         on command failure or continue based on the value of the __continue_on_error.
         """
         for env_call in self.__exec_stack:
             try:
                 logger.debug(f"Executing environment command: {env_call.command}")
-                env_call.command.call()
+                if env_call.popen:
+                    process = env_call.command.popen(log_file_path=env_call.process_log_path)
+                    self.__process_stack.append(process)
+                else:
+                    env_call.command.run()
             except RuntimeError as e:
                 logger.error(f"Environment execution error: {e}")
                 if not self.__continue_on_error:
