@@ -1,5 +1,6 @@
 from dataclasses import asdict
 from typing import Any
+import json
 
 import requests_unixsocket
 
@@ -84,7 +85,8 @@ class FirecrackerClient:
             mem_size_mib (int): The amount of memory in MiB to allocate to the machine.
             ht_enabled (bool): Whether to enable hyper-threading for the machine.
         """
-        self.__put("machine-config", self.__body_to_dict(machine_config))
+        data = self.__body_to_dict(machine_config)
+        self.__put("machine-config", data)
 
     def put_boot_source(self, boot_source: BootSource) -> None:
         """
@@ -94,7 +96,8 @@ class FirecrackerClient:
             kernel_image_path (str): The path to the kernel image to be used as the boot source.
             boot_args (str): The kernel command line arguments to be passed to the kernel on boot.
         """
-        self.__put("boot-source", self.__body_to_dict(boot_source))
+        data = self.__body_to_dict(boot_source)
+        self.__put("boot-source", data)
 
     def put_drives(self, drive: Drive) -> None:
         """
@@ -106,7 +109,8 @@ class FirecrackerClient:
             is_root_device (str): True if disk should be the root file drive else False
             is_read_only (bool): Whether the drive should be configured as read-only.
         """
-        self.__put(f"drives/{drive.drive_id}", self.__body_to_dict(drive))
+        data = self.__body_to_dict(drive)
+        self.__put(f"drives/{drive.drive_id}", data)
 
     def put_network_interfaces(self, network_interface: NetworkInterface) -> None:
         """
@@ -115,7 +119,8 @@ class FirecrackerClient:
         Args:
             network_interface (NetworkInterface): The network interface configuration.
         """
-        self.__put(f"network-interfaces/{network_interface.iface_id}", self.__body_to_dict(network_interface))   
+        data = self.__body_to_dict(network_interface)
+        self.__put(f"network-interfaces/{network_interface.iface_id}", data)   
 
     def put_actions(self, instance_action_info: InstanceActionInfo) -> None:
         """

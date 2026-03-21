@@ -307,7 +307,21 @@ class VMManager:
     @host_env_cleanup_pause.setter
     def host_env_cleanup_pause(self, host_env_cleanup_pause: int) -> None:
         self.__host_env_cleanup_pause = host_env_cleanup_pause
-    
+
+    def setup_host_networking(self) -> None:
+        """
+        Set up the host-side TAP device for networking if host and guest IPs are configured.
+        
+        This is useful when loading a snapshot, since the VM's network interface
+        configuration is restored from the snapshot, but the host-side TAP device
+        still needs to be created and configured.
+        """
+        if self.host_ip is not None and self.guest_ip is not None:
+            self.__host_env.add_tap_device(self.host_dev_name)
+            self.__host_env.add_tap_address(self.host_ip, self.host_dev_name)
+            self.__host_env.set_tap_up(self.host_dev_name)
+            self.__host_env.exec()
+
     def configure(self) -> None:
         """
         Configure the VM with the current settings.  This will 
@@ -320,11 +334,7 @@ class VMManager:
         """
 
         # Set up the TAP device for networking if host and guest IPs are provided
-        if self.host_ip is not None and self.guest_ip is not None:
-            self.__host_env.add_tap_device(self.host_dev_name)
-            self.__host_env.add_tap_address(self.host_ip, self.host_dev_name)
-            self.__host_env.set_tap_up(self.host_dev_name)
-            self.__host_env.exec()
+        self.setup_host_networking()
 
         # Configure the VM with the specified settings
         self.__client.put_machine_config(self.__machine_config)
