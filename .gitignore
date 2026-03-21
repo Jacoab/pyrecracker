@@ -3,3 +3,4 @@ dist/
 firecracker/
 .vscode/
 logs/
+snapshot/

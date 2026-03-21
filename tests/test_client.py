@@ -67,7 +67,7 @@ def test_put_actions(mock_session):
 def test_put_vm(mock_session):
 	client = FirecrackerClient("/tmp/firecracker.socket")
 	vm = VM(state="Running")
-	client.put_vm(vm)
+	client.patch_vm(vm)
 	mock_session.put.assert_called_once()
 	args, kwargs = mock_session.put.call_args
 	assert "vm" in args[0]

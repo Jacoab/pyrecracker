@@ -343,8 +343,8 @@ class VMManager:
 
         Args:
             mem_file_path (str): The path on the host where the memory file will be stored.
-        snapshot_path (str): The path on the host where the snapshot will be stored.
-        snapshot_type (str): The type of snapshot to create ('Full' or 'Diff').
+            snapshot_path (str): The path on the host where the snapshot will be stored.
+            snapshot_type (str): The type of snapshot to create ('Full' or 'Diff').
         """
         snapshot_params = SnapshotCreateParams(
             snapshot_path=snapshot_path,
@@ -375,19 +375,49 @@ class VMManager:
         )
         self.__client.put_snapshot_load(snapshot_load_params)
 
+    def create_overlay_fs(self, overlay_path: str, base_root_fs: str) -> str:
+        """
+        Create an overlay filesystem for the VM's root drive.
+
+        Args:
+            overlay_path (str): The path on the host where the overlay 
+                filesystem will be created.
+            base_root_fs (str): The root file system to base the 
+                overlay off of.
+        Returns:
+            str: Path to the overlay filesystem
+        """
+        upper_dir = overlay_path + "/upper"
+        work_dir = overlay_path + "/work"
+        merged_dir = overlay_path + "/merged"
+
+        self.__host_env.mkdir(upper_dir)
+        self.__host_env.mkdir(work_dir)
+        self.__host_env.mkdir(merged_dir)
+
+        self.__host_env.mount_overlay_fs(
+            base_root_fs,
+            upper_dir,
+            work_dir,
+            merged_dir
+        )
+        self.__host_env.exec()
+
+        return merged_dir
+
     def pause(self):
         """
         Pause the VM.
         """
         vm = VM(state="Paused")
-        self.__client.put_vm(vm)
+        self.__client.patch_vm(vm)
 
     def resume(self):
         """
         Resume the VM.
         """
         vm = VM(state="Resume")
-        self.__client.put_vm(vm)
+        self.__client.patch_vm(vm)
 
     def start(self) -> None:
         """
@@ -408,7 +438,7 @@ class VMManager:
             pass
         sleep(self.host_env_cleanup_pause)
 
+        self.__host_env.stop_processes()
         self.__host_env.rm(self.socket_path)
         self.__host_env.del_tap_device(self.host_dev_name)
         self.__host_env.exec()
-        self.__host_env.stop_processes()

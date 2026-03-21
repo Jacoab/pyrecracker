@@ -49,6 +49,17 @@ class FirecrackerClient:
         response = self.__session.put(f"{self.__socket_url}/{endpoint}", json=data)
         response.raise_for_status()
 
+    def __patch(self, endpoint: str, data: dict) -> None:
+        """
+        Helper method to send a PATCH request to the Firecracker API.
+
+        Args:
+            endpoint (str): The API endpoint to which the request should be sent.
+            data (dict): The JSON data to be included in the PATCH request.
+        """
+        response = self.__session.patch(f"{self.__socket_url}/{endpoint}", json=data)
+        response.raise_for_status()
+
     def __body_to_dict(self, body: Any) -> dict:
         """
         Helper method to convert a dataclass instance to a dictionary.
@@ -115,14 +126,14 @@ class FirecrackerClient:
         """
         self.__put("actions", self.__body_to_dict(instance_action_info))
 
-    def put_vm(self, vm: VM) -> None:
+    def patch_vm(self, vm: VM) -> None:
         """
         Configure the VM with the specified configuration.
 
         Args:
             vm (VM): The VM configuration to be applied.
         """
-        self.__put("vm", self.__body_to_dict(vm))
+        self.__patch("vm", self.__body_to_dict(vm))
 
     def put_snapshot_create(self, snapshot_create_params: SnapshotCreateParams) -> None:
         """

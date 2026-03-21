@@ -259,6 +259,29 @@ class HostEnvironment:
             )
         )
 
+    def mount_overlay_fs(
+        self, 
+        base_root_fs: str,
+        upper_dir: str,
+        work_dir: str,
+        merge_dir: str
+    ):
+        """
+        Mount an overlay filesystem at the specified target path in the host environment.
+
+        Args:
+            base_root_fs (str): The root file system to base the overlay off of.
+            upper_dir (str): The writable layer where all modifications will appear.
+            work_dir (str): An empty directory for internal filesystem operations.
+            merge_dir (str): Final mount point for the overlay filesystem.
+        """
+        cmd = Command("mount", sudo=True).add_args([
+            "-t", "overlay", "overlay", 
+            "-o", f"lowerdir={base_root_fs},upperdir={upper_dir},workdir={work_dir}", 
+            merge_dir
+        ])
+        self.__exec_stack.append(EnvironmentCall(cmd))
+
     def stop_processes(self) -> None:
         """
         Stops all running processes that were spawned with popen.

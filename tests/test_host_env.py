@@ -154,3 +154,16 @@ def test_stop_processes_handles_already_terminated(mock_command_popen):
 	
 	mock_process.terminate.assert_not_called()
 
+
+
+def test_mount_overlay_fs(mock_command_run):
+	executed = mock_command_run
+	env = HostEnvironment()
+	env.mount_overlay_fs(
+		"/path/to/rootfs",
+		"/path/to/upper_dir",
+		"/path/to/work_dir",
+		"/path/to/merge_dir",
+	)
+	env.exec()
+	assert any("sudo mount -t overlay overlay -o lowerdir=/path/to/rootfs,upperdir=/path/to/upper_dir,workdir=/path/to/work_dir /path/to/merge_dir")
