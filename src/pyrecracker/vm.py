@@ -1,6 +1,6 @@
 from typing import Optional
 from time import sleep
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError, HTTPError
 
 from pyrecracker.client import FirecrackerClient
 from pyrecracker.client_types import (
@@ -14,6 +14,17 @@ from pyrecracker.client_types import (
     SnapshotLoadParams
 )
 from pyrecracker.host_env import HostEnvironment
+
+
+class VMError(Exception):
+    """
+    Custom exception for VM related errors.
+    """
+    def __init__(self, message: str, wrapped_message: Optional[str] = None):
+        if wrapped_message is not None:
+            super().__init__(f"{message}: {wrapped_message}")
+        else:
+            super().__init__(message)
 
 
 class VMManager:
@@ -315,12 +326,17 @@ class VMManager:
         This is useful when loading a snapshot, since the VM's network interface
         configuration is restored from the snapshot, but the host-side TAP device
         still needs to be created and configured.
+
+        Raise:
+            VMError: If host IP and guest IP are not both configured.
         """
         if self.host_ip is not None and self.guest_ip is not None:
             self.__host_env.add_tap_device(self.host_dev_name)
             self.__host_env.add_tap_address(self.host_ip, self.host_dev_name)
             self.__host_env.set_tap_up(self.host_dev_name)
             self.__host_env.exec()
+        else:
+            raise VMError("Host IP and guest IP must be configured for host networking")
 
     def configure(self) -> None:
         """
@@ -331,16 +347,21 @@ class VMManager:
         - set the boot source
         - set the drive configuration
         - set the network interface configuration
+        
+        Raises:
+            VMError: If an HTTP error occurs while sending the configuration requests to the VM.
         """
+        try:
+            self.setup_host_networking()
 
-        # Set up the TAP device for networking if host and guest IPs are provided
-        self.setup_host_networking()
-
-        # Configure the VM with the specified settings
-        self.__client.put_machine_config(self.__machine_config)
-        self.__client.put_boot_source(self.__boot_source)
-        self.__client.put_drives(self.__drive)
-        self.__client.put_network_interfaces(self.__network_interface)
+            self.__client.put_machine_config(self.__machine_config)
+            self.__client.put_boot_source(self.__boot_source)
+            self.__client.put_drives(self.__drive)
+            self.__client.put_network_interfaces(self.__network_interface)
+        except VMError:
+            raise
+        except (HTTPError, ConnectionError) as err:
+            raise VMError("Error occurred while configuring VM", str(err))
 
     def create_snapshot(
         self, 
@@ -355,13 +376,18 @@ class VMManager:
             mem_file_path (str): The path on the host where the memory file will be stored.
             snapshot_path (str): The path on the host where the snapshot will be stored.
             snapshot_type (str): The type of snapshot to create ('Full' or 'Diff').
+        Raises:
+            VMError: If an HTTP error occurs while sending the snapshot create request to the VM.
         """
         snapshot_params = SnapshotCreateParams(
             snapshot_path=snapshot_path,
             mem_file_path=mem_file_path,
             snapshot_type=snapshot_type
         )
-        self.__client.put_snapshot_create(snapshot_params)
+        try:
+            self.__client.put_snapshot_create(snapshot_params)
+        except (HTTPError, ConnectionError) as err:
+            raise VMError("Error occurred while creating snapshot", str(err))
 
     def load_snapshot(
         self, 
@@ -376,6 +402,8 @@ class VMManager:
             snapshot_path (str): Path to the file that contains the microVM state to be loaded.
             mem_file_path (Optional[str]): The path on the host that contains the guest memory to be loaded.
             resume_vm (bool): Whether to resume the VM immediately after loading the snapshot.
+        Raises:
+            VMError: If an HTTP error occurs while sending the snapshot load request to the VM.
         """
         snapshot_load_params = SnapshotLoadParams(
             snapshot_path=snapshot_path,
@@ -383,7 +411,10 @@ class VMManager:
             mem_file_path=mem_file_path,
             resume_vm=resume_vm
         )
-        self.__client.put_snapshot_load(snapshot_load_params)
+        try:
+            self.__client.put_snapshot_load(snapshot_load_params)
+        except (HTTPError, ConnectionError) as err:
+            raise VMError("Error occurred while loading snapshot", str(err))
 
     def create_overlay_fs(self, overlay_path: str, base_root_fs: str) -> str:
         """
@@ -418,31 +449,54 @@ class VMManager:
     def pause(self):
         """
         Pause the VM.
+
+        Raises:
+            VMError: If an HTTP error occurs while sending the pausing request to the VM.
         """
         vm = VM(state="Paused")
-        self.__client.patch_vm(vm)
+        try:
+            self.__client.patch_vm(vm)
+        except (HTTPError, ConnectionError) as err:
+            raise VMError("Error occurred while pausing VM", str(err))
 
     def resume(self):
         """
         Resume the VM.
+
+        Raises:
+            VMError: If an HTTP error occurs while sending the resume request to the VM.
         """
         vm = VM(state="Resume")
-        self.__client.patch_vm(vm)
+        try:
+            self.__client.patch_vm(vm)
+        except (HTTPError, ConnectionError) as err:
+            raise VMError("Error occurred while resuming VM", str(err))
 
     def start(self) -> None:
         """
         Starts the microVM.
+
+        Raises:
+            VMError: If an HTTP error occurs while sending the start request to the VM.
         """
         action_info = InstanceActionInfo(action_type="InstanceStart")
-        self.__client.put_actions(action_info)
+        try:
+            self.__client.put_actions(action_info)
+        except (HTTPError, ConnectionError) as err:
+            raise VMError("Error occurred while starting VM", str(err))
 
     def stop(self) -> None:
         """
         Stops the microVM.
+
+        Raises:
+            VMError: If an HTTP error occurs while sending the shutdown request to the VM.
         """
         action_info = InstanceActionInfo(action_type="SendCtrlAltDel")
         try:
             self.__client.put_actions(action_info)
+        except HTTPError as err:
+            raise VMError("HTTP error occurred while stopping VM", str(err))
         except ConnectionError:
             # Connection may be closed if Firecracker is already shutting down
             pass

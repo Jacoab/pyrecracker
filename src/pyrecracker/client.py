@@ -1,8 +1,9 @@
+import logging
 from dataclasses import asdict
 from typing import Any
-import json
 
 import requests_unixsocket
+from requests.exceptions import HTTPError
 
 from pyrecracker.client_types import (
     VM,
@@ -14,6 +15,9 @@ from pyrecracker.client_types import (
     SnapshotCreateParams,
     SnapshotLoadParams
 )
+
+
+log = logging.getLogger(__name__)
 
 
 class FirecrackerClient:
@@ -46,9 +50,15 @@ class FirecrackerClient:
         Args:
             endpoint (str): The API endpoint to which the request should be sent.
             data (dict): The JSON data to be included in the PUT request.
+        Raises:
+            HTTPError: If the PUT request receives with an HTTP error response.
         """
-        response = self.__session.put(f"{self.__socket_url}/{endpoint}", json=data)
-        response.raise_for_status()
+        try:
+            response = self.__session.put(f"{self.__socket_url}/{endpoint}", json=data)
+            response.raise_for_status()
+        except HTTPError as err:
+            log.error(f"Error occurred while sending PUT request to {endpoint}: {err}")
+            raise
 
     def __patch(self, endpoint: str, data: dict) -> None:
         """
@@ -57,9 +67,15 @@ class FirecrackerClient:
         Args:
             endpoint (str): The API endpoint to which the request should be sent.
             data (dict): The JSON data to be included in the PATCH request.
+        Raises:
+            HTTPError: If the PATCH request receives with an HTTP error response.
         """
-        response = self.__session.patch(f"{self.__socket_url}/{endpoint}", json=data)
-        response.raise_for_status()
+        try:
+            response = self.__session.patch(f"{self.__socket_url}/{endpoint}", json=data)
+            response.raise_for_status()
+        except HTTPError as err:
+            log.error(f"Error occurred while sending PATCH request to {endpoint}: {err}")
+            raise
 
     def __body_to_dict(self, body: Any) -> dict:
         """

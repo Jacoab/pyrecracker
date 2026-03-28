@@ -1,7 +1,8 @@
 import signal
 import argparse
 from time import sleep
-from pyrecracker.vm import VMManager
+
+from pyrecracker.vm import VMManager, VMError
 
 
 def main():
@@ -26,34 +27,39 @@ def main():
     vm.host_ip = "172.16.0.1"
     vm.guest_ip = "172.16.0.2"
 
-    vm.configure()
-    vm.start()
-    print("VM launched successfully! Running for 5 seconds...")
-    sleep(20)
+    try:
+        vm.configure()
+        vm.start()
+        print("VM launched successfully! Running for 5 seconds...")
+        sleep(5)
 
-    print(f"Creating snapshot at {args.snapshot_path} and memory file at {args.mem_file_path}...")
-    vm.pause()
-    sleep(2)
-    vm.create_snapshot(args.snapshot_path, args.mem_file_path)
-    print("Snapshot created. Stopping VM...")
-    sleep(2)
+        print(f"Creating snapshot at {args.snapshot_path} and memory file at {args.mem_file_path}...")
+        vm.pause()
+        vm.create_snapshot(args.snapshot_path, args.mem_file_path)
+        print("Snapshot created. Stopping VM...")
+    except VMError as err:
+        print(IndexError)
     vm.stop()
 
     print("Loading VM from snapshot...")
-    vm = VMManager("/tmp/firecracker.sock", args.kernel)
-    vm.iface_id = "eth0"
-    vm.host_dev_name = "tap0"
-    vm.guest_mac = "AA:FC:00:00:00:01"
-    vm.host_ip = "172.16.0.1"
-    vm.guest_ip = "172.16.0.2"
-    
-    # Set up the TAP device on the host side
-    vm.setup_host_networking()
-    
-    # Load the snapshot (network interface config is restored from snapshot)
-    vm.load_snapshot(args.snapshot_path, args.mem_file_path, resume_vm=True)
-    print("VM loaded from snapshot and resumed!")
-    sleep(5)  # Give the network time to come up
+    try:
+        vm = VMManager("/tmp/firecracker.sock", args.kernel)
+        vm.iface_id = "eth0"
+        vm.host_dev_name = "tap0"
+        vm.guest_mac = "AA:FC:00:00:00:01"
+        vm.host_ip = "172.16.0.1"
+        vm.guest_ip = "172.16.0.2"
+        
+        # Set up the TAP device on the host side
+        vm.setup_host_networking()
+        
+        # Load the snapshot (network interface config is restored from snapshot)
+        vm.load_snapshot(args.snapshot_path, args.mem_file_path, resume_vm=True)
+        print("VM loaded from snapshot and resumed!")
+    except VMError as err:
+        print(err)
+        vm.stop()
+        return
 
     def sigterm_handler(signum, frame):
         print("\nSIGINT received, stopping the VM...")

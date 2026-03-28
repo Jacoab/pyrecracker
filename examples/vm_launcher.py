@@ -2,7 +2,7 @@ import signal
 from time import sleep
 import argparse
 
-from pyrecracker.vm import VMManager
+from pyrecracker.vm import VMManager, VMError
 
 
 def main():
@@ -25,8 +25,13 @@ def main():
     vm.host_ip = "172.16.0.1"
     vm.guest_ip = "172.16.0.2"
 
-    vm.configure()
-    vm.start()
+    try:
+        vm.configure()
+        vm.start()
+    except VMError as err:
+        print(err)
+        vm.stop()
+        return
 
     print("VM launched successfully!")
 
