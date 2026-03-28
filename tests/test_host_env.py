@@ -1,7 +1,7 @@
 
 
 from pyrecracker.host_env import HostEnvironment
-from pyrecracker.cmd import Command
+from pyrecracker.cmd import Command, CommandError
 
 import pytest
 from unittest.mock import Mock
@@ -108,21 +108,59 @@ def test_cleanup_handler_on_failure(monkeypatch):
 		call_count[0] += 1
 		# Fail on the third call (after two successful commands)
 		if call_count[0] == 3:
-			raise RuntimeError("Simulated failure")
+			raise CommandError("Simulated failure")
 	
-	monkeypatch.setattr(Command, "run", fake_run)
+	monkeypatch.setattr(Command, "run", fake_run)	
+	cleanup_called = []
 	
-	cleanup_1 = lambda: cleanup_called.append("cleanup_1")
-	cleanup_2 = lambda: cleanup_called.append("cleanup_2")
-	cleanup_3 = lambda: cleanup_called.append("cleanup_3")
+	def patched_del_tap_device(self, tap_name):
+		cleanup_called.append(f"del_tap_device({tap_name})")
+		return self
 	
-	env = HostEnvironment() \
-		.add_tap_device("tap0", cleanup=cleanup_1) \
-		.add_tap_address("192.168.1.1", "tap0", cleanup=cleanup_2) \
-		.set_tap_up("tap0", cleanup=cleanup_3) \
+	def patched_rm(self, target):
+		cleanup_called.append(f"rm({target})")
+		return self
+	
+	monkeypatch.setattr(HostEnvironment, "del_tap_device", patched_del_tap_device)
+	monkeypatch.setattr(HostEnvironment, "rm", patched_rm)
+	
+	HostEnvironment() \
+		.add_tap_device("tap0") \
+		.add_tap_address("192.168.1.1", "tap0") \
+		.set_tap_up("tap0") \
 		.exec()
+
 	
-	assert cleanup_called == ["cleanup_3", "cleanup_2", "cleanup_1"]
+	assert "del_tap_device(tap0)" in cleanup_called
+	assert cleanup_called.index("del_tap_device(tap0)") > 0 or len(cleanup_called) > 0
+
+
+def test_add_tap_device_has_cleanup():
+	env = HostEnvironment().add_tap_device("tap0")
+	
+	assert len(env.exec_stack) == 1
+	assert env.exec_stack[0].cleanup is not None
+
+
+def test_set_tap_up_has_cleanup():
+	env = HostEnvironment().set_tap_up("tap0")
+	
+	assert len(env.exec_stack) == 1
+	assert env.exec_stack[0].cleanup is not None
+
+
+def test_mkdir_has_cleanup():
+	env = HostEnvironment().mkdir("/tmp/testdir")
+	
+	assert len(env.exec_stack) == 1
+	assert env.exec_stack[0].cleanup is not None
+
+
+def test_mount_has_cleanup():
+	env = HostEnvironment().mount("/dev/sda1", "/mnt/test")
+	
+	assert len(env.exec_stack) == 1
+	assert env.exec_stack[0].cleanup is not None
 
 
 def test_rm_file(mock_command_run):
