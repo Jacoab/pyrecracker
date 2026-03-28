@@ -11,7 +11,10 @@ from pyrecracker.client_types import (
     InstanceActionInfo,
     NetworkInterface,
     SnapshotCreateParams,
-    SnapshotLoadParams
+    SnapshotLoadParams,
+    HugePages,
+    CacheType,
+    IOEngine
 )
 from pyrecracker.host_env import HostEnvironment
 
@@ -155,14 +158,14 @@ class VMManager:
         self.__machine_config.track_dirty_pages = track_dirty_pages
 
     @property
-    def huge_pages(self) -> Optional[str]:
+    def huge_pages(self) -> Optional[HugePages]:
         """
         Huge pages setting for the VM.
         """
         return self.__machine_config.huge_pages
 
     @huge_pages.setter
-    def huge_pages(self, huge_pages: str) -> None:
+    def huge_pages(self, huge_pages: HugePages) -> None:
         self.__machine_config.huge_pages = huge_pages
 
     @property
@@ -199,14 +202,14 @@ class VMManager:
         self.__drive.partuuid = partuuid
 
     @property
-    def cache_type(self) -> Optional[str]:
+    def cache_type(self) -> Optional[CacheType]:
         """
         Cache type for the drive.
         """
         return self.__drive.cache_type
 
     @cache_type.setter
-    def cache_type(self, cache_type: str) -> None:
+    def cache_type(self, cache_type: CacheType) -> None:
         self.__drive.cache_type = cache_type
 
     @property
@@ -232,14 +235,14 @@ class VMManager:
         self.__drive.path_on_host = path_on_host
 
     @property
-    def io_engine(self) -> Optional[str]:
+    def io_engine(self) -> Optional[IOEngine]:
         """
         IO engine for the drive.
         """
         return self.__drive.io_engine
 
     @io_engine.setter
-    def io_engine(self, io_engine: str) -> None:
+    def io_engine(self, io_engine: IOEngine) -> None:
         self.__drive.io_engine = io_engine
 
     @property

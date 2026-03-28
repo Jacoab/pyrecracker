@@ -1,5 +1,6 @@
 from typing import Optional
 from dataclasses import dataclass
+from enum import StrEnum
 
 
 @dataclass
@@ -18,6 +19,11 @@ class BootSource:
     initrd_path: Optional[str] = None
 
 
+class HugePages(StrEnum):
+    NONE = "None"
+    TWO_MIB = "2M"
+
+
 @dataclass
 class MachineConfiguration:
     """
@@ -29,24 +35,34 @@ class MachineConfiguration:
         vcpu_count (int): Number of vCPUs (1-32).
         smt (Optional[bool]): Simultaneous multithreading enabled.
         track_dirty_pages (Optional[bool]): Track dirty pages for live migration.
-        huge_pages (Optional[str]): Use huge pages ('None' or '2M').
+        huge_pages (Optional[HugePages]): Use huge pages.
     """
     mem_size_mib: int
     vcpu_count: int
     #cpu_template: Optional[CPUTemplate] = None will have to be a ref to another dataclass
     smt: Optional[bool] = None
     track_dirty_pages: Optional[bool] = None
-    huge_pages: Optional[str] = None
+    huge_pages: Optional[HugePages] = None
 
     def __post__init__(self):
         if self.vcpu_count < 1 or self.vcpu_count > 32:
             raise ValueError("vcpu_count must be between 1 and 32")
         if self.huge_pages is not None:
-            if self.huge_pages not in ["None", "2M"]:
+            if self.huge_pages not in [HugePages.NONE, HugePages.TWO_MIB]:
                 raise ValueError(
                     "MachineConfiguration.huge_pages must be either"
-                    " 'None' or '2M'"
+                    f" '{HugePages.NONE}' or '{HugePages.TWO_MIB}'"
                 )
+
+
+class CacheType(StrEnum):
+    UNSAFE = "Unsafe"
+    WRITEBACK = "Writeback"
+
+
+class IOEngine(StrEnum):
+    SYNC = "Sync"
+    ASYNC = "Async"
 
 
 @dataclass
@@ -59,33 +75,39 @@ class Drive:
         drive_id (str): Unique identifier for the drive.
         is_root_device (bool): Whether this drive is the root device.
         partuuid (Optional[str]): Partition UUID.
-        cache_type (Optional[str]): Cache type ('Unsafe' or 'Writeback').
+        cache_type (Optional[CacheType]): Cache type.
         is_read_only (Optional[bool]): If the drive is read-only.
         path_on_host (Optional[str]): Path to the drive on the host.
-        io_engine (Optional[str]): IO engine ('Sync' or 'Async').
+        io_engine (Optional[IOEngine]): IO engine.
         socket (Optional[str]): Path to the drive's socket.
     """
     drive_id: str
     is_root_device: bool
     partuuid: Optional[str] = None
-    cache_type: Optional[str] = None
+    cache_type: Optional[CacheType] = None
     is_read_only: Optional[bool] = None
     path_on_host: Optional[str] = None
     #rate_limiter: Optional[RateLimiter] = None This needs to be a ref to another dataclass
-    io_engine: Optional[str] = None
+    io_engine: Optional[IOEngine] = None
     socket: Optional[str] = None
 
     def __post__init__(self):
         if self.cache_type is not None:
-            if self.cache_type not in ["Unsafe", "Writeback"]:
+            if self.cache_type not in [CacheType.UNSAFE, CacheType.WRITEBACK]:
                 raise ValueError(
-                    "DriveBody.cache_type must be either 'Unsafe' or 'Writeback'"
+                    f"DriveBody.cache_type must be either '{CacheType.UNSAFE}' or '{CacheType.WRITEBACK}'"
                 )
         if self.io_engine is not None:
-            if self.io_engine not in ["Sync", "Async"]:
+            if self.io_engine not in [IOEngine.SYNC, IOEngine.ASYNC]:
                 raise ValueError(
-                    "DriveBody.io_engine must be either 'Sync' or 'Async'"
+                    f"DriveBody.io_engine must be either '{IOEngine.SYNC}' or '{IOEngine.ASYNC}'"
                 )
+
+
+class ActionType(StrEnum):
+    FLUSH_METRICS = "FlushMetrics"
+    INSTANCE_START = "InstanceStart"
+    SEND_CTRL_ALT_DEL = "SendCtrlAltDel"
 
 
 @dataclass
@@ -95,19 +117,19 @@ class InstanceActionInfo:
     Maps 1-to-1 with the InstanceActionInfo definition in the Firecracker Swagger spec.
     
     Attributes:
-        action_type (str): Action type ('FlushMetrics', 'InstanceStart', 'SendCtrlAltDel').
+        action_type (ActionType): Action type to execute.
     """
-    action_type: str
+    action_type: ActionType
 
     def __post__init__(self):
         if self.action_type not in [
-            "FlushMetrics", 
-            "InstanceStart", 
-            "SendCtrlAltDel"
+            ActionType.FLUSH_METRICS,
+            ActionType.INSTANCE_START,
+            ActionType.SEND_CTRL_ALT_DEL
         ]:
             raise ValueError(
-                "InstanceActionInfo.action_type must be one of 'FlushMetrics', "
-                "'InstanceStart', or 'SendCtrlAltDel'"
+                f"InstanceActionInfo.action_type must be one of '{ActionType.FLUSH_METRICS}', "
+                f"'{ActionType.INSTANCE_START}', or '{ActionType.SEND_CTRL_ALT_DEL}'"
             )
         
 
@@ -128,21 +150,31 @@ class NetworkInterface:
     #tx_rate_limiter: Optional[RateLimiter] = None This needs to be a ref
 
 
+class VMState(StrEnum):
+    PAUSED = "Paused"
+    RESUMED = "Resumed"
+
+
 @dataclass
 class VM:
     """
     Represents the state of a Firecracker microVM.
 
     Attributes:
-        state (str): The current state of the microVM
+        state (VMState): The current state of the microVM
     """
-    state: str
+    state: VMState
 
     def __post__init__(self):
-        if self.state not in ["Paused", "Resume"]:
+        if self.state not in [VMState.PAUSED, VMState.RESUMED]:
             raise ValueError(
-                "VM.state must be one of 'Paused' or 'Resume'"
+                f"VM.state must be one of '{VMState.PAUSED}' or '{VMState.RESUMED}'"
             )
+
+
+class SnapshotType(StrEnum):
+    FULL = "Full"
+    DIFF = "Diff"
 
 
 @dataclass
@@ -153,16 +185,16 @@ class SnapshotCreateParams:
     Attributes:
         mem_file_path (str): The path on the host where the memory file will be stored.
         snapshot_path (str): The path on the host where the snapshot will be stored.
-        snapshot_type (Optional[str]): The type of snapshot to create ('Full' or 'Diff').
+        snapshot_type (Optional[SnapshotType]): The type of snapshot to create ('Full' or 'Diff').
     """
     snapshot_path: str
     mem_file_path: str
-    snapshot_type: Optional[str] = None
+    snapshot_type: Optional[SnapshotType] = None
 
     def __post__init__(self):
-        if self.snapshot_type not in ["Full", "Diff"]:
+        if self.snapshot_type not in [SnapshotType.FULL, SnapshotType.DIFF]:
             raise ValueError(
-                "SnapshotCreateParams.snapshot_type must be either 'Full' or 'Diff'"
+                f"SnapshotCreateParams.snapshot_type must be either '{SnapshotType.FULL}' or '{SnapshotType.DIFF}'"
             )
 
 
