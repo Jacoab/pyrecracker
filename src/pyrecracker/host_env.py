@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Optional, Self
 from logging import getLogger
 import subprocess
 
-from pyrecracker.cmd import Command
+from pyrecracker.cmd import Command, CommandError
 
 
 logger = getLogger(__name__)
@@ -78,7 +78,7 @@ class HostEnvironment:
         self, 
         tap_name: str, 
         cleanup: Optional[Callable[[], None]] = None,
-    ) -> None:
+    ) -> Self:
         """
         Add a TAP virtual network device to the host environment.
 
@@ -86,18 +86,22 @@ class HostEnvironment:
             tap_name (str): The name of the TAP device to be added.
             cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
                 if the command execution fails.
+        
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
         cmd = Command("ip", sudo=True) \
             .add_arg("tuntap") \
             .add_args(["add", "dev", tap_name]) \
             .add_args(["mode", "tap"])
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+        return self
 
     def del_tap_device(
         self, 
         tap_name: str, 
         cleanup: Optional[Callable[[], None]] = None,
-    ) -> None:
+    ) -> Self:
         """
         Delete a TAP virtual network device on the host environment.
 
@@ -105,19 +109,23 @@ class HostEnvironment:
             tap_name (str): The name of the TAP device to be added.
             cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
                 if the command execution fails.
+        
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
         cmd = Command("ip", sudo=True) \
             .add_arg("tuntap") \
             .add_args(["del", "dev", tap_name]) \
             .add_args(["mode", "tap"])
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+        return self
 
     def add_tap_address(
         self, 
         address: str, 
         tap_name: str, 
         cleanup: Optional[Callable[[], None]] = None,
-    ) -> None:
+    ) -> Self:
         """
         Add an IP address to a TAP virtual network device in the host environment.
 
@@ -126,18 +134,22 @@ class HostEnvironment:
             tap_name (str): The name of the TAP device to which the IP address should be added.
             cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
                 if the command execution fails.
+        
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
         cmd = Command("ip", sudo=True) \
             .add_arg("addr") \
             .add_args(["add", f"{address}/24"]) \
             .add_args(["dev", tap_name])
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+        return self
 
     def set_tap_up(
         self, 
         tap_name: str, 
         cleanup: Optional[Callable[[], None]] = None,
-    ) -> None:
+    ) -> Self:
         """
         Set the TAP virtual network device status to up in the host environment.
 
@@ -145,17 +157,21 @@ class HostEnvironment:
             tap_name (str): The name of the TAP device.
             cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
                 if the command execution fails.
+        
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
         cmd = Command("ip", sudo=True) \
             .add_arg("link") \
             .add_args(["set", tap_name, "up"])
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+        return self
 
     def mkdir(
         self, 
         path: str,
         cleanup: Optional[Callable[[], None]] = None,
-    ) -> None:
+    ) -> Self:
         """
         Create a directory at the specified path in the host environment.
 
@@ -163,16 +179,20 @@ class HostEnvironment:
             path (str): The path where the directory should be created.
             cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
                 if the command execution fails.
+        
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
         cmd = Command("mkdir").add_arg(path)
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+        return self
 
     def mount(
         self, 
         source: str, 
         target: str,
         cleanup: Optional[Callable[[], None]] = None    
-    ) -> None:
+    ) -> Self:
         """
         Mount a filesystem at the specified target path in the host environment.
 
@@ -181,15 +201,19 @@ class HostEnvironment:
             target (str): The target path where the filesystem should be mounted.
             cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
                 if the command execution fails.
+        
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
         cmd = Command("mount", sudo=True).add_args([source, target])
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+        return self
 
     def unmount(
         self, 
         path: str,
         cleanup: Optional[Callable[[], None]] = None,
-    ) -> None:
+    ) -> Self:
         """
         Unmount a filesystem at the specified target path in the host environment.
 
@@ -197,16 +221,20 @@ class HostEnvironment:
             path (str): The path of the filesystem to be unmounted.
             cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
                 if the command execution fails.
+        
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
         cmd = Command("umount", sudo=True).add_arg(path)
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+        return self
 
     def copy(
         self, 
         source: str, 
         target: str,
         cleanup: Optional[Callable[[], None]] = None,
-    ) -> None:
+    ) -> Self:
         """
         Copy a file from source to target path in the host environment.
 
@@ -215,11 +243,15 @@ class HostEnvironment:
             target (str): The destination path where the file should be copied.
             cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
                 if the command execution fails.
+        
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
         cmd = Command("cp", sudo=True).add_args([source, target])
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+        return self
 
-    def rm(self, target: str, cleanup: Optional[Callable[[], None]] = None) -> None:
+    def rm(self, target: str, cleanup: Optional[Callable[[], None]] = None) -> Self:
         """
         Remove the directory or file from the host environment.
 
@@ -227,16 +259,20 @@ class HostEnvironment:
             target (str): The path of the directory or file to be deleted
             cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
                 if the command execution fails.
+        
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
         cmd = Command("rm", sudo=True).add_args(["-f", target])
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+        return self
 
     def firecracker(
         self, 
         api_socket: str = "/tmp/firecracker.sock",
         logs_path: Optional[str] = None,
         cleanup: Optional[Callable[[], None]] = None
-    ) -> None:
+    ) -> Self:
         """
         Run the Firecracker virtual machine manager and make the Firecracker API
         availble on the provided unix socket path.
@@ -248,6 +284,9 @@ class HostEnvironment:
                 Firecracker process.
             cleanup (Optional[Callable[[], None]]): An optional cleanup function to be called
                 if the command execution fails.
+        
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
         cmd = Command("firecracker", sudo=True).add_args(["--api-sock", api_socket])
         self.__exec_stack.append(
@@ -258,6 +297,7 @@ class HostEnvironment:
                 cleanup=cleanup
             )
         )
+        return self
 
     def mount_overlay_fs(
         self, 
@@ -265,7 +305,7 @@ class HostEnvironment:
         upper_dir: str,
         work_dir: str,
         merge_dir: str
-    ):
+    ) -> Self:
         """
         Mount an overlay filesystem at the specified target path in the host environment.
 
@@ -274,6 +314,9 @@ class HostEnvironment:
             upper_dir (str): The writable layer where all modifications will appear.
             work_dir (str): An empty directory for internal filesystem operations.
             merge_dir (str): Final mount point for the overlay filesystem.
+        
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
         cmd = Command("mount", sudo=True).add_args([
             "-t", "overlay", "overlay", 
@@ -281,11 +324,15 @@ class HostEnvironment:
             merge_dir
         ])
         self.__exec_stack.append(EnvironmentCall(cmd))
+        return self
 
-    def stop_processes(self) -> None:
+    def stop_processes(self) -> Self:
         """
         Stops all running processes that were spawned with popen.
         Handles cases where processes have already terminated.
+        
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
         for process in self.__process_stack:
             try:
@@ -299,26 +346,35 @@ class HostEnvironment:
                         process.wait()
             except (ProcessLookupError, OSError) as e:
                 logger.debug(f"Error stopping process: {e}")
+        return self
 
-    def exec(self) -> None:
+    def exec(self) -> Self:
         """
-        Executes all commands in the execution stack.  Command execution can stop
-        on command failure or continue based on the value of the __continue_on_error.
+        Executes all commands in the execution stack. Command execution can stop
+        on command failure or continue based on the value of __continue_on_error.
+        If commands are stopped on failure, cleanup functions for executed commands are called.
+
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
         """
+        intermediary_stack: list[EnvironmentCall] = []
         for env_call in self.__exec_stack:
             try:
                 logger.debug(f"Executing environment command: {env_call.command}")
+                intermediary_stack.append(env_call)
                 if env_call.popen:
                     process = env_call.command.popen(log_file_path=env_call.process_log_path)
                     self.__process_stack.append(process)
                 else:
                     env_call.command.run()
-            except RuntimeError as e:
+            except CommandError as e:
                 logger.error(f"Environment execution error: {e}")
                 if not self.__continue_on_error:
-                    if env_call.cleanup is not None:
-                        logger.debug("Executing cleanup function for failed command")
-                        env_call.cleanup()
+                    for error_env_call in reversed(intermediary_stack):
+                        if error_env_call.cleanup is not None:
+                            logger.debug("Executing cleanup function for failed command")
+                            error_env_call.cleanup()
                     break
 
         self.__exec_stack = []
+        return self

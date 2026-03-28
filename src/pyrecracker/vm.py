@@ -49,9 +49,9 @@ class VMManager:
         socket_path: str, kernel_image_path: str, 
         firecracker_logs_path: str = "logs/firecracker.log"
     ) -> None:
-        self.__host_env = HostEnvironment()
-        self.__host_env.firecracker(api_socket=socket_path, logs_path=firecracker_logs_path)
-        self.__host_env.exec()
+        self.__host_env = HostEnvironment() \
+            .firecracker(api_socket=socket_path, logs_path=firecracker_logs_path) \
+            .exec()
         self.__client = FirecrackerClient(socket_path)
         
         self.__boot_source = BootSource(
@@ -331,10 +331,10 @@ class VMManager:
             VMError: If host IP and guest IP are not both configured.
         """
         if self.host_ip is not None and self.guest_ip is not None:
-            self.__host_env.add_tap_device(self.host_dev_name)
-            self.__host_env.add_tap_address(self.host_ip, self.host_dev_name)
-            self.__host_env.set_tap_up(self.host_dev_name)
-            self.__host_env.exec()
+            self.__host_env.add_tap_device(self.host_dev_name) \
+                .add_tap_address(self.host_ip, self.host_dev_name) \
+                .set_tap_up(self.host_dev_name) \
+                .exec()
         else:
             raise VMError("Host IP and guest IP must be configured for host networking")
 
@@ -432,17 +432,16 @@ class VMManager:
         work_dir = overlay_path + "/work"
         merged_dir = overlay_path + "/merged"
 
-        self.__host_env.mkdir(upper_dir)
-        self.__host_env.mkdir(work_dir)
-        self.__host_env.mkdir(merged_dir)
-
-        self.__host_env.mount_overlay_fs(
-            base_root_fs,
-            upper_dir,
-            work_dir,
-            merged_dir
-        )
-        self.__host_env.exec()
+        self.__host_env.mkdir(upper_dir) \
+            .mkdir(work_dir) \
+            .mkdir(merged_dir) \
+            .mount_overlay_fs(
+                base_root_fs,
+                upper_dir,
+                work_dir,
+                merged_dir
+            ) \
+            .exec()
 
         return merged_dir
 
@@ -502,7 +501,7 @@ class VMManager:
             pass
         sleep(self.host_env_cleanup_pause)
 
-        self.__host_env.stop_processes()
-        self.__host_env.rm(self.socket_path)
-        self.__host_env.del_tap_device(self.host_dev_name)
-        self.__host_env.exec()
+        self.__host_env.stop_processes() \
+            .rm(self.socket_path) \
+            .del_tap_device(self.host_dev_name) \
+            .exec()
