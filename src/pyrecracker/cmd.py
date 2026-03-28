@@ -4,6 +4,11 @@ from typing import Optional, Self
 from pathlib import Path
 
 
+class CommandError(Exception):
+    """Custom exception for command execution errors."""
+    pass
+
+
 class Command:
     """
     A class to build and execute shell commands. This class supports
@@ -83,11 +88,14 @@ class Command:
             RuntimeError: If the command execution fails, a RuntimeError is raised with the command error code.
         """
         try:
-            subprocess.run(self.__command_list, check=True)
+            result = subprocess.run(self.__command_list, check=True)
+            if result.returncode != 0:
+                error_message = f"Command '{str(self)}' failed with exit code {result.returncode} and output: {result.stdout}"
+                raise CommandError(error_message)
         except subprocess.CalledProcessError as e:
             error_message = f"Command '{str(self)}' failed with exit code {e.returncode}"
-            raise RuntimeError(error_message) from e
-        
+            raise CommandError(error_message) from e
+
     def popen(self, log_file_path: Optional[str] = None) -> subprocess.Popen:
         """
         Executes the command by spawning a background process using subprocess.Popen.
@@ -121,4 +129,4 @@ class Command:
                 return process
         except subprocess.CalledProcessError as e:
             error_message = f"Command '{str(self)}' failed with exit code {e.returncode}"
-            raise RuntimeError(error_message) from e
+            raise CommandError(error_message) from e
