@@ -242,3 +242,18 @@ def test_mount_overlay_fs(mock_command_run):
 	)
 	env.exec()
 	assert any("sudo mount -t overlay overlay -o lowerdir=/path/to/rootfs,upperdir=/path/to/upper_dir,workdir=/path/to/work_dir /path/to/merge_dir")
+
+
+def test_dd(mock_command_run):
+	executed = mock_command_run
+	env = HostEnvironment() \
+		.dd(if_="/dev/zero", of="rootfs.img", bs="4M", count=256) \
+		.exec()
+	assert any("sudo dd if=/dev/zero of=rootfs.img bs=4M count=256" in cmd for cmd in executed)
+
+
+def test_dd_has_cleanup():
+	env = HostEnvironment().dd(if_="/dev/zero", of="base-rootfs.ext4")
+	
+	assert len(env.exec_stack) == 1
+	assert env.exec_stack[0].cleanup is not None

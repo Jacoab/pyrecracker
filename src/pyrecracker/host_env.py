@@ -313,6 +313,33 @@ class HostEnvironment:
         self.__exec_stack.append(EnvironmentCall(cmd))
         return self
 
+    def dd(
+        self, 
+        if_: str, 
+        of: str, 
+        bs: str = "1M", 
+        count: int = 512
+    ) -> Self:
+        """
+        Use the dd command to create a file in the host environment.
+
+        Args:
+            if_ (str): The input file path.
+            of (str): The output file path.
+            bs (str): The block size to use for copying (default is '1M').
+            count (int): The number of blocks to copy (default is 512).
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
+        """
+        cmd = Command("dd", sudo=True) \
+            .add_args([f"if={if_}", f"of={of}", f"bs={bs}", f"count={count}"])
+        
+        def cleanup() -> None:
+            self.rm(of).exec()
+
+        self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+        return self
+
     def stop_processes(self) -> Self:
         """
         Stops all running processes that were spawned with popen.
