@@ -282,6 +282,36 @@ class HostEnvironment:
 
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
         return self
+    
+    def modprobe(self, module_name: str) -> Self:
+        """
+        Load a kernel module into the host environment.
+
+        Args:
+            module_name (str): The name of the kernel module to be loaded.
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
+        """
+        cmd = Command("modprobe", sudo=True).add_arg(module_name)
+
+        def cleanup() -> None:
+            self.rmmod(module_name).exec()
+
+        self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
+        return self
+
+    def rmmod(self, module_name: str) -> Self:
+        """
+        Remove a kernel module from the host environment.
+
+        Args:
+            module_name (str): The name of the kernel module to be removed.
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
+        """
+        cmd = Command("rmmod", sudo=True).add_arg(module_name)
+        self.__exec_stack.append(EnvironmentCall(cmd))
+        return self
 
     def stop_processes(self) -> Self:
         """

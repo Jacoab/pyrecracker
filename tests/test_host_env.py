@@ -149,6 +149,29 @@ def test_set_tap_up_has_cleanup():
 	assert env.exec_stack[0].cleanup is not None
 
 
+def test_modprobe(mock_command_run):
+	executed = mock_command_run
+	env = HostEnvironment() \
+		.modprobe("vhost_net") \
+		.exec()
+	assert any("sudo modprobe vhost_net" in cmd for cmd in executed)
+
+
+def test_rmmod(mock_command_run):
+	executed = mock_command_run
+	env = HostEnvironment() \
+		.rmmod("vhost_net") \
+		.exec()
+	assert any("sudo rmmod vhost_net" in cmd for cmd in executed)
+
+
+def test_modprobe_has_cleanup():
+	env = HostEnvironment().modprobe("vhost_net")
+	
+	assert len(env.exec_stack) == 1
+	assert env.exec_stack[0].cleanup is not None
+
+
 def test_mkdir_has_cleanup():
 	env = HostEnvironment().mkdir("/tmp/testdir")
 	
