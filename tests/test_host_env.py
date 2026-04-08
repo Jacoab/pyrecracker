@@ -281,3 +281,11 @@ def test_create_dev_mapper_snapshot(mock_command_run):
 		.create_dev_mapper_snapshot("vm1-snap", 0, 1048576, "/dev/loop0", "/dev/loop1") \
 		.exec()
 	assert any("sudo dmsetup create vm1-snap --table 0 1048576 snapshot /dev/loop0 /dev/loop1 P 8" in cmd for cmd in executed)
+
+
+def test_chroot(mock_command_run):
+	executed = mock_command_run
+	env = HostEnvironment() \
+		.chroot("/path/to/chroot") \
+		.exec()
+	assert any("sudo chroot /path/to/chroot" in cmd for cmd in executed)

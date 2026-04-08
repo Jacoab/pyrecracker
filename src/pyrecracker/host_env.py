@@ -400,6 +400,19 @@ class HostEnvironment:
         self.__exec_stack.append(EnvironmentCall(cmd))
         return self
 
+    def chroot(self, new_root: str) -> Self:
+        """
+        Change the root directory for the current process in the host environment.
+
+        Args:
+            new_root (str): The path to the new root directory.
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
+        """
+        cmd = Command("chroot", sudo=True).add_arg(new_root)
+        self.__exec_stack.append(EnvironmentCall(cmd))
+        return self
+
     def stop_processes(self) -> Self:
         """
         Stops all running processes that were spawned with popen.
