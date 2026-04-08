@@ -357,6 +357,20 @@ class HostEnvironment:
         self.__exec_stack.append(EnvironmentCall(cmd))
         return self
 
+    def blockdev(self, operation: str, device: str) -> Self:
+        """
+        Execute the blockdev command on a block device in the host environment.
+
+        Args:
+            operation (str): The blockdev operation to perform (e.g., '--getsz').
+            device (str): The block device path (e.g., '/dev/loop0').
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
+        """
+        cmd = Command("blockdev", sudo=True).add_args([operation, device])
+        self.__exec_stack.append(EnvironmentCall(cmd))
+        return self
+
     def stop_processes(self) -> Self:
         """
         Stops all running processes that were spawned with popen.

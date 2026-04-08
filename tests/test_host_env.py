@@ -265,3 +265,11 @@ def test_loosetup(mock_command_run):
 		.loosetup("base-rootfs.ext4") \
 		.exec()
 	assert any("sudo losetup -f base-rootfs.ext4" in cmd for cmd in executed)
+
+
+def test_blockdev(mock_command_run):
+	executed = mock_command_run
+	env = HostEnvironment() \
+		.blockdev("--getsz", "/dev/loop0") \
+		.exec()
+	assert any("sudo blockdev --getsz /dev/loop0" in cmd for cmd in executed)
