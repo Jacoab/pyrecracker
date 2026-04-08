@@ -340,6 +340,23 @@ class HostEnvironment:
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
         return self
 
+    def loosetup(self, file: str) -> Self:
+        """
+        Associate a file with a loop device in the host environment.
+
+        Args:
+            file (str): The file to be associated with a loop device.
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
+        """
+        cmd = Command("losetup", sudo=True).add_args(["-f", file])
+        
+        # TODO: Need some way to clean up the created device.  The problem right now is
+        # that I cant get the output of losetup whic is needed to know which device to 
+        # delete in the cleanup unil the command is ran.  Think of a way to handle this.
+        self.__exec_stack.append(EnvironmentCall(cmd))
+        return self
+
     def stop_processes(self) -> Self:
         """
         Stops all running processes that were spawned with popen.

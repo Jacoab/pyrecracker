@@ -257,3 +257,11 @@ def test_dd_has_cleanup():
 	
 	assert len(env.exec_stack) == 1
 	assert env.exec_stack[0].cleanup is not None
+
+
+def test_loosetup(mock_command_run):
+	executed = mock_command_run
+	env = HostEnvironment() \
+		.loosetup("base-rootfs.ext4") \
+		.exec()
+	assert any("sudo losetup -f base-rootfs.ext4" in cmd for cmd in executed)
