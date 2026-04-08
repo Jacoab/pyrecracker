@@ -371,6 +371,35 @@ class HostEnvironment:
         self.__exec_stack.append(EnvironmentCall(cmd))
         return self
 
+    def create_dev_mapper_snapshot(
+        self, 
+        snapshot_name: str, 
+        start_sector: int, 
+        num_sectors: int, 
+        origin_device: str, 
+        cow_device: str, 
+        persist_flag: str = "P", 
+        chunk_sectors: int = 8
+    ) -> Self:
+        """
+        Create a device mapper snapshot in the host environment.
+
+        Args:
+            snapshot_name (str): The name of the snapshot to create.
+            start_sector (int): The starting sector for the snapshot.
+            num_sectors (int): The number of sectors in the snapshot.
+            origin_device (str): The path to the origin device (e.g., '/dev/loop0').
+            cow_device (str): The path to the copy-on-write device (e.g., '/dev/loop1').
+            persist_flag (str): Persistence flag (default 'P').
+            chunk_sectors (int): Chunk size in sectors (default 8).
+        Returns:
+            Self: The HostEnvironment instance for method chaining.
+        """
+        snapshot_table = f"{start_sector} {num_sectors} snapshot {origin_device} {cow_device} {persist_flag} {chunk_sectors}"
+        cmd = Command("dmsetup", sudo=True).add_args(["create", snapshot_name, "--table", snapshot_table])
+        self.__exec_stack.append(EnvironmentCall(cmd))
+        return self
+
     def stop_processes(self) -> Self:
         """
         Stops all running processes that were spawned with popen.
