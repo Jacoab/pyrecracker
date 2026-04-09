@@ -89,7 +89,7 @@ class HostEnvironment:
             .add_args(["mode", "tap"])
         
         def cleanup() -> None:
-            self.del_tap_device(tap_name).exec()
+            self.del_tap_device(tap_name).batch_exec()
 
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
         return self
@@ -141,7 +141,7 @@ class HostEnvironment:
             .add_args(["set", tap_name, "up"])
         
         def cleanup() -> None:
-            self.del_tap_device(tap_name).exec()
+            self.del_tap_device(tap_name).batch_exec()
 
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
         return self
@@ -158,7 +158,7 @@ class HostEnvironment:
         cmd = Command("mkdir").add_arg(path)
 
         def cleanup() -> None:
-            self.rm(path).exec()
+            self.rm(path).batch_exec()
 
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
         return self
@@ -176,7 +176,7 @@ class HostEnvironment:
         cmd = Command("mount", sudo=True).add_args([source, target])
 
         def cleanup() -> None:
-            self.unmount(target).exec()
+            self.unmount(target).batch_exec()
 
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
         return self
@@ -241,7 +241,7 @@ class HostEnvironment:
         cmd = Command("firecracker", sudo=True).add_args(["--api-sock", api_socket])
 
         def cleanup() -> None:
-            self.rm(api_socket).exec()
+            self.rm(api_socket).batch_exec()
 
         self.__exec_stack.append(
             EnvironmentCall(
@@ -278,7 +278,7 @@ class HostEnvironment:
         ])
 
         def cleanup() -> None:
-            self.unmount(merge_dir).exec()
+            self.unmount(merge_dir).batch_exec()
 
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
         return self
@@ -295,7 +295,7 @@ class HostEnvironment:
         cmd = Command("modprobe", sudo=True).add_arg(module_name)
 
         def cleanup() -> None:
-            self.rmmod(module_name).exec()
+            self.rmmod(module_name).batch_exec()
 
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
         return self
@@ -335,12 +335,12 @@ class HostEnvironment:
             .add_args([f"if={if_}", f"of={of}", f"bs={bs}", f"count={count}"])
         
         def cleanup() -> None:
-            self.rm(of).exec()
+            self.rm(of).batch_exec()
 
         self.__exec_stack.append(EnvironmentCall(cmd, cleanup=cleanup))
         return self
 
-    def loosetup(self, file: str) -> Self:
+    def losetup(self, file: str) -> Self:
         """
         Associate a file with a loop device in the host environment.
 
@@ -435,7 +435,29 @@ class HostEnvironment:
                 logger.debug(f"Error stopping process: {e}")
         return self
 
-    def exec(self) -> Self:
+    def exec(self) -> str:
+        """
+        Executes a single command in the execution stack and returns the command output.
+        If the command is stopped on failure, the cleanup function for the command is called.
+
+        Returns:
+            str: The output of the executed command.
+        """
+        if not self.__exec_stack:
+            raise CommandError("No commands to execute in the host environment")
+
+        env_call = self.__exec_stack.pop(0)
+        try:
+            logger.debug(f"Executing environment command: {env_call.command}")
+            return env_call.command.run()
+        except CommandError as e:
+            logger.error(f"Environment execution error: {e}")
+            if not self.__continue_on_error and env_call.cleanup is not None:
+                logger.debug("Executing cleanup function for failed command")
+                env_call.cleanup()
+            raise
+
+    def batch_exec(self) -> Self:
         """
         Executes all commands in the execution stack. Command execution can stop
         on command failure or continue based on the value of __continue_on_error.

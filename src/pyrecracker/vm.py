@@ -14,7 +14,10 @@ from pyrecracker.client_types import (
     SnapshotLoadParams,
     HugePages,
     CacheType,
-    IOEngine
+    IOEngine,
+    SnapshotType,
+    VMState,
+    ActionType
 )
 from pyrecracker.host_env import HostEnvironment
 
@@ -54,7 +57,7 @@ class VMManager:
     ) -> None:
         self.__host_env = HostEnvironment() \
             .firecracker(api_socket=socket_path, logs_path=firecracker_logs_path) \
-            .exec()
+            .batch_exec()
         self.__client = FirecrackerClient(socket_path)
         
         self.__boot_source = BootSource(
@@ -337,7 +340,7 @@ class VMManager:
             self.__host_env.add_tap_device(self.host_dev_name) \
                 .add_tap_address(self.host_ip, self.host_dev_name) \
                 .set_tap_up(self.host_dev_name) \
-                .exec()
+                .batch_exec()
         else:
             raise VMError("Host IP and guest IP must be configured for host networking")
 
@@ -370,7 +373,7 @@ class VMManager:
         self, 
         snapshot_path: str, 
         mem_file_path: str, 
-        snapshot_type: str = "Full"
+        snapshot_type: SnapshotType = SnapshotType.FULL
     ) -> None:
         """
         Create a snapshot of the VM.
@@ -378,7 +381,7 @@ class VMManager:
         Args:
             mem_file_path (str): The path on the host where the memory file will be stored.
             snapshot_path (str): The path on the host where the snapshot will be stored.
-            snapshot_type (str): The type of snapshot to create ('Full' or 'Diff').
+            snapshot_type (SnapshotType): The type of snapshot to create.
         Raises:
             VMError: If an HTTP error occurs while sending the snapshot create request to the VM.
         """
@@ -419,34 +422,38 @@ class VMManager:
         except (HTTPError, ConnectionError) as err:
             raise VMError("Error occurred while loading snapshot", str(err))
 
-    def create_overlay_fs(self, overlay_path: str, base_root_fs: str) -> str:
+    def create_cow_dev_snapshot(
+        self,
+        snapshot_name: str,
+        base_root_fs: str
+    ) -> None:
         """
-        Create an overlay filesystem for the VM's root drive.
+        Create a copy-on-write device snapshot.  The snapshot created by this
+        method can be used as the root file system for a VM, allowing you to 
+        create a snapshot of a base root file system without modifying the original file.
 
         Args:
-            overlay_path (str): The path on the host where the overlay 
-                filesystem will be created.
+            snapshot_name (str): The name of the snapshot to create.
             base_root_fs (str): The root file system to base the 
                 overlay off of.
         Returns:
             str: Path to the overlay filesystem
         """
-        upper_dir = overlay_path + "/upper"
-        work_dir = overlay_path + "/work"
-        merged_dir = overlay_path + "/merged"
+        self.__host_env.modprobe("dm_snapshot").exec()
+        self.__host_env.dd("/dev/zero", base_root_fs).exec()
+        base_image_loop_dev = self.__host_env.losetup(base_root_fs).exec()
 
-        self.__host_env.mkdir(upper_dir) \
-            .mkdir(work_dir) \
-            .mkdir(merged_dir) \
-            .mount_overlay_fs(
-                base_root_fs,
-                upper_dir,
-                work_dir,
-                merged_dir
-            ) \
-            .exec()
-
-        return merged_dir
+        self.__host_env.dd("/dev/zero", f"{snapshot_name}.img", count=200).exec()
+        overlay_loop_dev = self.__host_env.losetup(snapshot_name).exec()
+        
+        base_dev_size = self.__host_env.blockdev("--getsz", base_image_loop_dev).exec()
+        self.__host_env.create_dev_mapper_snapshot(
+            snapshot_name, 
+            0, 
+            int(base_dev_size), 
+            base_image_loop_dev,
+            overlay_loop_dev
+        )
 
     def pause(self):
         """
@@ -455,7 +462,7 @@ class VMManager:
         Raises:
             VMError: If an HTTP error occurs while sending the pausing request to the VM.
         """
-        vm = VM(state="Paused")
+        vm = VM(state=VMState.PAUSED)
         try:
             self.__client.patch_vm(vm)
         except (HTTPError, ConnectionError) as err:
@@ -468,7 +475,7 @@ class VMManager:
         Raises:
             VMError: If an HTTP error occurs while sending the resume request to the VM.
         """
-        vm = VM(state="Resume")
+        vm = VM(state=VMState.RESUMED)
         try:
             self.__client.patch_vm(vm)
         except (HTTPError, ConnectionError) as err:
@@ -481,7 +488,7 @@ class VMManager:
         Raises:
             VMError: If an HTTP error occurs while sending the start request to the VM.
         """
-        action_info = InstanceActionInfo(action_type="InstanceStart")
+        action_info = InstanceActionInfo(action_type=ActionType.INSTANCE_START)
         try:
             self.__client.put_actions(action_info)
         except (HTTPError, ConnectionError) as err:
@@ -494,7 +501,7 @@ class VMManager:
         Raises:
             VMError: If an HTTP error occurs while sending the shutdown request to the VM.
         """
-        action_info = InstanceActionInfo(action_type="SendCtrlAltDel")
+        action_info = InstanceActionInfo(action_type=ActionType.SEND_CTRL_ALT_DEL)
         try:
             self.__client.put_actions(action_info)
         except HTTPError as err:
@@ -507,4 +514,4 @@ class VMManager:
         self.__host_env.stop_processes() \
             .rm(self.socket_path) \
             .del_tap_device(self.host_dev_name) \
-            .exec()
+            .batch_exec()

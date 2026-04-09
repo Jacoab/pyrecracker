@@ -35,56 +35,56 @@ def test_add_tap_device(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.add_tap_device("tap0") \
-		.exec()
+		.batch_exec()
 	assert any("sudo ip tuntap add dev tap0 mode tap" in cmd for cmd in executed)
 
 def test_del_tap_device(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.del_tap_device("tap0") \
-		.exec()
+		.batch_exec()
 	assert any("sudo ip tuntap del dev tap0 mode tap" in cmd for cmd in executed)
 
 def test_add_tap_address(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.add_tap_address("192.168.1.10", "tap0") \
-		.exec()
+		.batch_exec()
 	assert any("sudo ip addr add 192.168.1.10/24 dev tap0" in cmd for cmd in executed)
 
 def test_set_tap_up(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.set_tap_up("tap0") \
-		.exec()
+		.batch_exec()
 	assert any("sudo ip link set tap0 up" in cmd for cmd in executed)
 
 def test_mkdir(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.mkdir("/tmp/testdir") \
-		.exec()
+		.batch_exec()
 	assert any("mkdir /tmp/testdir" in cmd for cmd in executed)
 
 def test_mount(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.mount("/dev/sda1", "/mnt/test") \
-		.exec()
+		.batch_exec()
 	assert any("sudo mount /dev/sda1 /mnt/test" in cmd for cmd in executed)
 
 def test_unmount(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.unmount("/mnt/test") \
-		.exec()
+		.batch_exec()
 	assert any("sudo umount /mnt/test" in cmd for cmd in executed)
 
 def test_copy(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.copy("/tmp/source", "/tmp/target") \
-		.exec()
+		.batch_exec()
 	assert any("sudo cp /tmp/source /tmp/target" in cmd for cmd in executed)
 
 
@@ -94,7 +94,7 @@ def test_multiple_commands(mock_command_run):
 		.add_tap_device("tap1") \
 		.add_tap_address("192.168.1.10", "tap1") \
 		.set_tap_up("tap1") \
-		.exec()
+		.batch_exec()
 	assert any("sudo ip tuntap add dev tap1 mode tap" in cmd for cmd in executed)
 	assert any("sudo ip addr add 192.168.1.10/24 dev tap1" in cmd for cmd in executed)
 	assert any("sudo ip link set tap1 up" in cmd for cmd in executed)
@@ -128,7 +128,7 @@ def test_cleanup_handler_on_failure(monkeypatch):
 		.add_tap_device("tap0") \
 		.add_tap_address("192.168.1.1", "tap0") \
 		.set_tap_up("tap0") \
-		.exec()
+		.batch_exec()
 
 	
 	assert "del_tap_device(tap0)" in cleanup_called
@@ -153,7 +153,7 @@ def test_modprobe(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.modprobe("vhost_net") \
-		.exec()
+		.batch_exec()
 	assert any("sudo modprobe vhost_net" in cmd for cmd in executed)
 
 
@@ -161,7 +161,7 @@ def test_rmmod(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.rmmod("vhost_net") \
-		.exec()
+		.batch_exec()
 	assert any("sudo rmmod vhost_net" in cmd for cmd in executed)
 
 
@@ -190,7 +190,7 @@ def test_rm_file(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.rm("/tmp/firecracker.sock") \
-		.exec()
+		.batch_exec()
 	assert any("rm -f /tmp/firecracker.sock" in cmd for cmd in executed)
 
 
@@ -198,14 +198,14 @@ def test_firecracker(mock_command_popen):
 	executed = mock_command_popen
 	env = HostEnvironment() \
 		.firecracker(api_socket="/path/to/socket") \
-		.exec()
+		.batch_exec()
 	assert any("firecracker --api-sock /path/to/socket" in cmd for cmd in executed)
 
 
 def test_stop_processes(mock_command_popen):
 	env = HostEnvironment() \
 		.firecracker(api_socket="/path/to/socket") \
-		.exec()
+		.batch_exec()
 	
 	process_stack = env.process_stack
 	assert len(process_stack) > 0
@@ -219,7 +219,7 @@ def test_stop_processes(mock_command_popen):
 def test_stop_processes_handles_already_terminated(mock_command_popen):
 	env = HostEnvironment() \
 		.firecracker(api_socket="/path/to/socket") \
-		.exec()
+		.batch_exec()
 	
 	process_stack = env.process_stack
 	mock_process = process_stack[0]
@@ -240,7 +240,7 @@ def test_mount_overlay_fs(mock_command_run):
 		"/path/to/work_dir",
 		"/path/to/merge_dir",
 	)
-	env.exec()
+	env.batch_exec()
 	assert any("sudo mount -t overlay overlay -o lowerdir=/path/to/rootfs,upperdir=/path/to/upper_dir,workdir=/path/to/work_dir /path/to/merge_dir")
 
 
@@ -248,7 +248,7 @@ def test_dd(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.dd(if_="/dev/zero", of="rootfs.img", bs="4M", count=256) \
-		.exec()
+		.batch_exec()
 	assert any("sudo dd if=/dev/zero of=rootfs.img bs=4M count=256" in cmd for cmd in executed)
 
 
@@ -262,8 +262,8 @@ def test_dd_has_cleanup():
 def test_loosetup(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
-		.loosetup("base-rootfs.ext4") \
-		.exec()
+		.losetup("base-rootfs.ext4") \
+		.batch_exec()
 	assert any("sudo losetup -f base-rootfs.ext4" in cmd for cmd in executed)
 
 
@@ -271,7 +271,7 @@ def test_blockdev(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.blockdev("--getsz", "/dev/loop0") \
-		.exec()
+		.batch_exec()
 	assert any("sudo blockdev --getsz /dev/loop0" in cmd for cmd in executed)
 
 
@@ -279,7 +279,7 @@ def test_create_dev_mapper_snapshot(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.create_dev_mapper_snapshot("vm1-snap", 0, 1048576, "/dev/loop0", "/dev/loop1") \
-		.exec()
+		.batch_exec()
 	assert any("sudo dmsetup create vm1-snap --table 0 1048576 snapshot /dev/loop0 /dev/loop1 P 8" in cmd for cmd in executed)
 
 
@@ -287,5 +287,5 @@ def test_chroot(mock_command_run):
 	executed = mock_command_run
 	env = HostEnvironment() \
 		.chroot("/path/to/chroot") \
-		.exec()
+		.batch_exec()
 	assert any("sudo chroot /path/to/chroot" in cmd for cmd in executed)

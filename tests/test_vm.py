@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from requests.exceptions import HTTPError, ConnectionError
 
+from pyrecracker.client_types import ActionType, VMState
 from pyrecracker.vm import VMManager, VMError
 
 
@@ -10,6 +11,7 @@ def mock_host_env(monkeypatch):
 	mock_env = MagicMock()
 	mock_env.firecracker.return_value = mock_env
 	mock_env.exec.return_value = mock_env
+	mock_env.batch_exec.return_value = mock_env
 	monkeypatch.setattr("pyrecracker.vm.HostEnvironment", lambda: mock_env)
 	return mock_env
 
@@ -44,7 +46,7 @@ class TestVMManagerInitialization:
 		args, kwargs = mock_host_env.firecracker.call_args
 		assert kwargs["api_socket"] == "/tmp/firecracker.sock"
 		assert kwargs["logs_path"] == "logs/firecracker.log"
-		mock_host_env.exec.assert_called_once()
+		mock_host_env.batch_exec.assert_called_once()
 
 	def test_init_creates_firecracker_client(self, mock_host_env):
 		with patch("pyrecracker.vm.FirecrackerClient") as mock_client_class:
@@ -94,7 +96,7 @@ class TestSetupHostNetworking:
 		mock_host_env.add_tap_device.assert_called_once_with("tap0")
 		mock_host_env.add_tap_address.assert_called_once_with("192.168.1.1", "tap0")
 		mock_host_env.set_tap_up.assert_called_once_with("tap0")
-		mock_host_env.exec.assert_called_once()
+		mock_host_env.batch_exec.assert_called_once()
 
 	def test_setup_host_networking_without_host_ip(self, vm_manager):
 		vm_manager.host_ip = None
@@ -139,7 +141,7 @@ class TestConfigure:
 		vm.configure()
 
 		mock_host_env.add_tap_device.assert_called_once()
-		mock_host_env.exec.assert_called()
+		mock_host_env.batch_exec.assert_called()
 
 		mock_client.put_machine_config.assert_called_once()
 		mock_client.put_boot_source.assert_called_once()
@@ -203,7 +205,6 @@ class TestCreateSnapshot:
 		vm_manager.create_snapshot(
 			snapshot_path="/path/to/snapshot",
 			mem_file_path="/path/to/memory",
-			snapshot_type="Full"
 		)
 
 		mock_client.put_snapshot_create.assert_called_once()
@@ -321,7 +322,7 @@ class TestVMLifecycle:
 
 		mock_client.patch_vm.assert_called_once()
 		vm_obj = mock_client.patch_vm.call_args[0][0]
-		assert vm_obj.state == "Resume"
+		assert vm_obj.state == VMState.RESUMED
 
 	def test_resume_http_error(self, vm_manager, mock_client):
 		mock_client.patch_vm.side_effect = HTTPError("HTTP error")
@@ -340,7 +341,7 @@ class TestVMLifecycle:
 
 		mock_client.put_actions.assert_called_once()
 		action_info = mock_client.put_actions.call_args[0][0]
-		assert action_info.action_type == "SendCtrlAltDel"
+		assert action_info.action_type == ActionType.SEND_CTRL_ALT_DEL
 
 	def test_stop_http_error(self, vm_manager, mock_client):
 		mock_client.put_actions.side_effect = HTTPError("HTTP error")
@@ -366,3 +367,67 @@ class TestVMLifecycle:
 			vm_manager.stop()
 
 			mock_sleep.assert_called_once_with(5)
+
+
+class TestCreateCowDevSnapshot:
+
+	def test_create_cow_dev_snapshot_calls_host_env_methods(self, mock_host_env, mock_client):
+		# Configure batch_exec to return mock_host_env so the initialization chain works
+		mock_host_env.batch_exec.return_value = mock_host_env
+		mock_host_env.modprobe.return_value = mock_host_env
+		mock_host_env.dd.return_value = mock_host_env
+		mock_host_env.losetup.return_value = mock_host_env
+		mock_host_env.blockdev.return_value = mock_host_env
+		mock_host_env.exec.return_value = "8192"  # blockdev returns size as numeric string
+
+		vm = VMManager(
+			socket_path="/tmp/firecracker.sock",
+			kernel_image_path="/path/to/kernel"
+		)
+		mock_host_env.reset_mock()
+		mock_host_env.modprobe.return_value = mock_host_env
+		mock_host_env.dd.return_value = mock_host_env
+		mock_host_env.losetup.return_value = mock_host_env
+		mock_host_env.blockdev.return_value = mock_host_env
+		mock_host_env.exec.return_value = "8192"
+
+		vm.create_cow_dev_snapshot(
+			snapshot_name="test_snapshot",
+			base_root_fs="/path/to/rootfs.img"
+		)
+
+		mock_host_env.modprobe.assert_called_once_with("dm_snapshot")
+		assert mock_host_env.dd.call_count >= 2
+		assert mock_host_env.losetup.call_count >= 2
+		mock_host_env.blockdev.assert_called_once()
+		mock_host_env.create_dev_mapper_snapshot.assert_called_once()
+
+	def test_create_cow_dev_snapshot_creates_dev_mapper_snapshot(self, mock_host_env, mock_client):
+		mock_host_env.batch_exec.return_value = mock_host_env
+		mock_host_env.modprobe.return_value = mock_host_env
+		mock_host_env.dd.return_value = mock_host_env
+		mock_host_env.losetup.return_value = mock_host_env
+		mock_host_env.blockdev.return_value = mock_host_env
+		mock_host_env.exec.return_value = "8192"
+
+		vm = VMManager(
+			socket_path="/tmp/firecracker.sock",
+			kernel_image_path="/path/to/kernel"
+		)
+		mock_host_env.reset_mock()
+		mock_host_env.modprobe.return_value = mock_host_env
+		mock_host_env.dd.return_value = mock_host_env
+		mock_host_env.losetup.return_value = mock_host_env
+		mock_host_env.blockdev.return_value = mock_host_env
+		mock_host_env.exec.return_value = "8192"
+
+		vm.create_cow_dev_snapshot(
+			snapshot_name="test_snapshot",
+			base_root_fs="/path/to/rootfs.img"
+		)
+
+		mock_host_env.create_dev_mapper_snapshot.assert_called_once()
+		call_args = mock_host_env.create_dev_mapper_snapshot.call_args[0]
+		assert call_args[0] == "test_snapshot"
+		assert call_args[1] == 0
+		assert call_args[2] == 8192

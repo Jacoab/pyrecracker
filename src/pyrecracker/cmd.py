@@ -80,7 +80,7 @@ class Command:
         self.__command_list.extend(args_list)
         return self
     
-    def run(self) -> None:
+    def run(self) -> str:
         """
         Executes the command using subprocess.run.
 
@@ -88,10 +88,13 @@ class Command:
             RuntimeError: If the command execution fails, a RuntimeError is raised with the command error code.
         """
         try:
-            result = subprocess.run(self.__command_list, check=True)
-            if result.returncode != 0:
-                error_message = f"Command '{str(self)}' failed with exit code {result.returncode} and output: {result.stdout}"
-                raise CommandError(error_message)
+            result = subprocess.run(
+                self.__command_list, 
+                check=True, 
+                capture_output=True, 
+                text=True
+            )
+            return result.stdout
         except subprocess.CalledProcessError as e:
             error_message = f"Command '{str(self)}' failed with exit code {e.returncode}"
             raise CommandError(error_message) from e

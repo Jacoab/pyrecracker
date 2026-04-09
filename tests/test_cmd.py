@@ -28,23 +28,6 @@ def test_complex_command_method_chaining():
 	assert str(cmd) == "sudo ip link add name eth0 type dummy"
 
 
-def test_command_run_non_zero_exit_code_raises_command_error(monkeypatch):
-	cmd = Command("false")
-	
-	class FakeResult:
-		returncode = 1
-		stdout = ""
-	
-	def fake_run(*args, **kwargs):
-		return FakeResult()
-	
-	monkeypatch.setattr("subprocess.run", fake_run)
-	with pytest.raises(CommandError) as exc:
-		cmd.run()
-	assert "failed with exit code 1" in str(exc.value)
-	assert "false" in str(exc.value)
-
-
 def test_command_run_called_process_error_raises_command_error(monkeypatch):
 	cmd = Command("failing_command")
 	
