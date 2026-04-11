@@ -44,7 +44,7 @@ class MachineConfiguration:
     track_dirty_pages: Optional[bool] = None
     huge_pages: Optional[HugePages] = None
 
-    def __post__init__(self):
+    def __post_init__(self):
         if self.vcpu_count < 1 or self.vcpu_count > 32:
             raise ValueError("vcpu_count must be between 1 and 32")
         if self.huge_pages is not None:
@@ -91,7 +91,7 @@ class Drive:
     io_engine: Optional[IOEngine] = None
     socket: Optional[str] = None
 
-    def __post__init__(self):
+    def __post_init__(self):
         if self.cache_type is not None:
             if self.cache_type not in [CacheType.UNSAFE, CacheType.WRITEBACK]:
                 raise ValueError(
@@ -121,7 +121,7 @@ class InstanceActionInfo:
     """
     action_type: ActionType
 
-    def __post__init__(self):
+    def __post_init__(self):
         if self.action_type not in [
             ActionType.FLUSH_METRICS,
             ActionType.INSTANCE_START,
@@ -165,7 +165,7 @@ class VM:
     """
     state: VMState
 
-    def __post__init__(self):
+    def __post_init__(self):
         if self.state not in [VMState.PAUSED, VMState.RESUMED]:
             raise ValueError(
                 f"VM.state must be one of '{VMState.PAUSED}' or '{VMState.RESUMED}'"
@@ -191,7 +191,7 @@ class SnapshotCreateParams:
     mem_file_path: str
     snapshot_type: Optional[SnapshotType] = None
 
-    def __post__init__(self):
+    def __post_init__(self):
         if self.snapshot_type not in [SnapshotType.FULL, SnapshotType.DIFF]:
             raise ValueError(
                 f"SnapshotCreateParams.snapshot_type must be either '{SnapshotType.FULL}' or '{SnapshotType.DIFF}'"
