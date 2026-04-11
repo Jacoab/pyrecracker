@@ -264,7 +264,7 @@ def test_loosetup(mock_command_run):
 	env = HostEnvironment() \
 		.losetup("base-rootfs.ext4") \
 		.batch_exec()
-	assert any("sudo losetup -f base-rootfs.ext4" in cmd for cmd in executed)
+	assert any("sudo losetup -f --show base-rootfs.ext4" in cmd for cmd in executed)
 
 
 def test_blockdev(mock_command_run):

@@ -440,11 +440,10 @@ class VMManager:
             str: Path to the overlay filesystem
         """
         self.__host_env.modprobe("dm_snapshot").exec()
-        self.__host_env.dd("/dev/zero", base_root_fs).exec()
         base_image_loop_dev = self.__host_env.losetup(base_root_fs).exec()
 
         self.__host_env.dd("/dev/zero", f"{snapshot_name}.img", count=200).exec()
-        overlay_loop_dev = self.__host_env.losetup(snapshot_name).exec()
+        overlay_loop_dev = self.__host_env.losetup(f"{snapshot_name}.img").exec()
         
         base_dev_size = self.__host_env.blockdev("--getsz", base_image_loop_dev).exec()
         self.__host_env.create_dev_mapper_snapshot(

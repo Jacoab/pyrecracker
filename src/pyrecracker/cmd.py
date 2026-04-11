@@ -94,7 +94,7 @@ class Command:
                 capture_output=True, 
                 text=True
             )
-            return result.stdout
+            return result.stdout.strip()
         except subprocess.CalledProcessError as e:
             error_message = f"Command '{str(self)}' failed with exit code {e.returncode}"
             raise CommandError(error_message) from e

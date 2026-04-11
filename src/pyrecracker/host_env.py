@@ -349,7 +349,7 @@ class HostEnvironment:
         Returns:
             Self: The HostEnvironment instance for method chaining.
         """
-        cmd = Command("losetup", sudo=True).add_args(["-f", file])
+        cmd = Command("losetup", sudo=True).add_args(["-f", "--show", file])
         
         # TODO: Need some way to clean up the created device.  The problem right now is
         # that I cant get the output of losetup whic is needed to know which device to 
