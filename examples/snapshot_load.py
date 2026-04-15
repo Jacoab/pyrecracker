@@ -27,16 +27,23 @@ def main():
     vm.host_ip = "172.16.0.1"
     vm.guest_ip = "172.16.0.2"
 
+    print("=" * 70)
+    print("Creating And Launching Firecracker Snapshot")
+    print("=" * 70)
+
     try:
+        print("[1/3] Launching base VM...")
         vm.configure()
         vm.start()
-        print("VM launched successfully! Running for 5 seconds...")
+        print("  VM launched successfully! Running for 5 seconds...")
         sleep(5)
 
-        print(f"Creating snapshot at {args.snapshot_path} and memory file at {args.mem_file_path}...")
+        print("\n[3/6] Pausing VM and creating Firecracker snapshot...")
+        print(f"  Snapshot file: {args.snapshot_path}")
+        print(f"  Memory file: {args.mem_file_path}")
         vm.pause()
         vm.create_snapshot(args.snapshot_path, args.mem_file_path)
-        print("Snapshot created. Stopping VM...")
+        print("  Snapshot created. Stopping VM...")
     except VMError as err:
         print(IndexError)
     vm.stop()
@@ -55,7 +62,7 @@ def main():
         
         # Load the snapshot (network interface config is restored from snapshot)
         vm.load_snapshot(args.snapshot_path, args.mem_file_path, resume_vm=True)
-        print("VM loaded from snapshot and resumed!")
+        print("  VM loaded from snapshot and resumed!")
     except VMError as err:
         print(err)
         vm.stop()

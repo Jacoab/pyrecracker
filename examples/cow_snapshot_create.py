@@ -28,6 +28,7 @@ import signal
 import argparse
 from time import sleep
 from pathlib import Path
+import subprocess
 
 from pyrecracker.vm import VMManager, VMError
 
@@ -112,24 +113,15 @@ def main():
         print("Creating COW Device Snapshot and Firecracker Snapshot")
         print("=" * 70)
 
-        print("\n[1/5] Configuring VM...")
+        print("\n[1/6] Configuring VM...")
         vm.configure()
 
-        print("[2/5] Starting VM...")
+        print("[2/6] Starting VM...")
         vm.start()
-        print(f"✓ VM launched successfully! Running for {args.runtime_secs} seconds...")
+        print(f"  VM launched successfully! Running for {args.runtime_secs} seconds...")
         sleep(args.runtime_secs)
 
-        print("\n[3/5] Creating copy-on-write (COW) device snapshot...")
-        print(f"  Base rootfs: {args.base_rootfs}")
-        print(f"  Overlay name: {args.snapshot_name}")
-        vm.create_cow_dev_snapshot(
-            snapshot_name=args.snapshot_name,
-            base_root_fs=args.base_rootfs
-        )
-        print("✓ COW device snapshot created successfully!")
-
-        print("\n[4/5] Pausing VM and creating Firecracker snapshot...")
+        print("\n[3/6] Pausing VM and creating Firecracker snapshot...")
         print(f"  Snapshot file: {args.snapshot_path}")
         print(f"  Memory file: {args.mem_file_path}")
         vm.pause()
@@ -139,9 +131,9 @@ def main():
         )
         print("✓ Firecracker snapshot created successfully!")
 
-        print("\n[5/5] Stopping VM...")
+        print("\n[4/6] Stopping VM...")
         vm.stop()
-        print("✓ VM stopped successfully!")
+        print("  VM stopped successfully!")
 
         print("\n" + "=" * 70)
         print("SUCCESS: Snapshots created!")
@@ -150,10 +142,62 @@ def main():
         print(f"  - COW device overlay: {args.snapshot_name}.img")
         print(f"  - VM state: {args.snapshot_path}")
         print(f"  - VM memory: {args.mem_file_path}")
-        print(f"\nYou can now load these snapshots using the snapshot_load.py example,")
-        print(f"or use the COW device with a new VM instance.")
 
-        return 0
+        print("\n[5/6] Creating copy-on-write (COW) device snapshot...")
+        print(f"  Base rootfs: {args.base_rootfs}")
+        print(f"  Overlay name: {args.snapshot_name}")
+        # Initialize VM manager
+        vm = VMManager(
+            socket_path="/tmp/firecracker.sock",
+            kernel_image_path=args.kernel
+        )
+
+        # Configure VM settings
+        vm.vcpu_count = 2
+        vm.mem_size_mib = 512
+        vm.boot_args = "console=ttyS0 reboot=k panic=1 pci=off ip=172.16.0.2::172.16.0.1:255.255.255.0::eth0:off"
+        vm.drive_id = "rootfs"
+        vm.is_root_device = True
+        vm.path_on_host = args.base_rootfs
+        vm.is_read_only = True  # Important: keep base image read-only
+        vm.iface_id = "eth0"
+        vm.host_dev_name = "tap0"
+        vm.guest_mac = "AA:FC:00:00:00:01"
+        vm.host_ip = "172.16.0.1"
+        vm.guest_ip = "172.16.0.2"
+        vm.create_cow_dev_snapshot(
+            snapshot_name=args.snapshot_name,
+            base_root_fs=args.base_rootfs
+        )
+        print("COW device snapshot created successfully!")
+
+        subprocess.run([
+            "sudo", "chmod", "660", f"/dev/mapper/{args.snapshot_name}"
+        ], check=True)
+
+        subprocess.run([
+            "sudo", "chgrp", "kvm", f"/dev/mapper/{args.snapshot_name}"
+        ], check=True)
+        
+        print("[6/6] Loading copy on write device snapshot...")
+        print(f"  Snapshot file: {args.snapshot_path}")
+        print(f"  Memory file: {args.mem_file_path}")
+        vm.configure()
+        vm.load_cow_dev_snapshot(args.snapshot_name)
+        vm.start()
+
+        print("  Copy on write device snapshot loaded successfully!")
+
+        def sigterm_handler(signum, frame):
+            print("\nSIGINT received, stopping the VM...")
+            vm.stop()
+            print("VM stopped successfully!")
+            print("Exiting.")
+            exit(0)
+
+        signal.signal(signal.SIGINT, sigterm_handler)
+        while True:
+            pass
 
     except VMError as err:
         print(f"\n✗ Error: {err}")
@@ -167,7 +211,7 @@ def main():
         print("\n\nKeyboard interrupt received. Stopping VM...")
         try:
             vm.stop()
-            print("✓ VM stopped successfully!")
+            print("VM stopped successfully!")
         except Exception as err:
             print(f"Error while stopping VM: {err}")
         return 1

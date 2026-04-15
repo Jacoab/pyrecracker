@@ -395,7 +395,7 @@ class HostEnvironment:
         Returns:
             Self: The HostEnvironment instance for method chaining.
         """
-        snapshot_table = f"{start_sector} {num_sectors} snapshot {origin_device} {cow_device} {persist_flag} {chunk_sectors}"
+        snapshot_table = f'{start_sector} {num_sectors} snapshot {origin_device} {cow_device} {persist_flag} {chunk_sectors}'
         cmd = Command("dmsetup", sudo=True).add_args(["create", snapshot_name, "--table", snapshot_table])
         self.__exec_stack.append(EnvironmentCall(cmd))
         return self

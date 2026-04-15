@@ -192,10 +192,11 @@ class SnapshotCreateParams:
     snapshot_type: Optional[SnapshotType] = None
 
     def __post_init__(self):
-        if self.snapshot_type not in [SnapshotType.FULL, SnapshotType.DIFF]:
-            raise ValueError(
-                f"SnapshotCreateParams.snapshot_type must be either '{SnapshotType.FULL}' or '{SnapshotType.DIFF}'"
-            )
+        if self.snapshot_type is not None:
+            if self.snapshot_type not in [SnapshotType.FULL, SnapshotType.DIFF]:
+                raise ValueError(
+                    f"SnapshotCreateParams.snapshot_type must be either '{SnapshotType.FULL}' or '{SnapshotType.DIFF}'"
+                )
 
 
 @dataclass

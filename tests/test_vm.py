@@ -397,7 +397,7 @@ class TestCreateCowDevSnapshot:
 		)
 
 		mock_host_env.modprobe.assert_called_once_with("dm_snapshot")
-		assert mock_host_env.dd.call_count >= 2
+		assert mock_host_env.dd.call_count == 1
 		assert mock_host_env.losetup.call_count >= 2
 		mock_host_env.blockdev.assert_called_once()
 		mock_host_env.create_dev_mapper_snapshot.assert_called_once()
@@ -431,3 +431,16 @@ class TestCreateCowDevSnapshot:
 		assert call_args[0] == "test_snapshot"
 		assert call_args[1] == 0
 		assert call_args[2] == 8192
+
+	def test_load_cow_dev_snapshot_calls_put_drives(self, mock_client):
+		vm = VMManager(
+			socket_path="/tmp/firecracker.sock",
+			kernel_image_path="/path/to/kernel"
+		)
+
+		vm.load_cow_dev_snapshot("test_snapshot")
+
+		mock_client.put_drives.assert_called_once()
+		drive_config = mock_client.put_drives.call_args[0][0]
+		assert drive_config.drive_id == "rootfs"
+		assert drive_config.path_on_host == "/dev/mapper/test_snapshot"

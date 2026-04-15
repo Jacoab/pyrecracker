@@ -8,7 +8,8 @@ from pyrecracker.client_types import (
     Drive, 
     InstanceActionInfo, 
     SnapshotCreateParams,
-    SnapshotLoadParams, 
+    SnapshotLoadParams,
+    VMState, 
 )
 
 
@@ -66,12 +67,12 @@ def test_put_actions(mock_session):
 
 def test_patch_vm(mock_session):
 	client = FirecrackerClient("/tmp/firecracker.socket")
-	vm = VM(state="Running")
+	vm = VM(state=VMState.RESUMED)
 	client.patch_vm(vm)
 	mock_session.patch.assert_called_once()
 	args, kwargs = mock_session.patch.call_args
 	assert "vm" in args[0]
-	assert kwargs["json"]["state"] == "Running"
+	assert kwargs["json"]["state"] == VMState.RESUMED
 
 
 def test_put_snapshot_create(mock_session):

@@ -452,7 +452,32 @@ class VMManager:
             int(base_dev_size), 
             base_image_loop_dev,
             overlay_loop_dev
-        )
+        ).exec()
+
+    def load_cow_dev_snapshot(
+        self, 
+        snapshot_path: str, 
+        drive_id: str = "rootfs",
+        is_root_device: bool = True,
+        is_read_only: bool = False,
+    ) -> None:
+        """
+        Load a copy-on-write device snapshot as a drive for the VM.
+
+        Args:
+            snapshot_path (str): The path to the snapshot to load.
+            drive_id (str): The identifier inside firecracker for the drive to be configured.
+            is_root_device (bool): True if disk should be the root file drive else False
+            is_read_only (bool): Whether the drive should be configured as read-only.
+        """
+        self.__drive.drive_id = drive_id
+        self.__drive.is_root_device = is_root_device
+        self.__drive.is_read_only = is_read_only
+        self.__drive.path_on_host = f"/dev/mapper/{snapshot_path}"
+        try:
+            self.__client.put_drives(self.__drive)
+        except (HTTPError, ConnectionError) as err:
+            raise VMError("Error occurred while loading COW device snapshot: ", str(err))
 
     def pause(self):
         """

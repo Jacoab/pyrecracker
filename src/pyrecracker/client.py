@@ -97,9 +97,7 @@ class FirecrackerClient:
         Configure the machine with the specified number of vCPUs and memory size.
 
         Args:
-            vcpu_count (int): The number of virtual CPUs to allocate to the machine.
-            mem_size_mib (int): The amount of memory in MiB to allocate to the machine.
-            ht_enabled (bool): Whether to enable hyper-threading for the machine.
+            machine_config (MachineConfiguration): The machine configuration to be applied.
         """
         data = self.__body_to_dict(machine_config)
         self.__put("machine-config", data)
@@ -109,8 +107,8 @@ class FirecrackerClient:
         Configure the linux kernel boot source for the machine.
 
         Args:
-            kernel_image_path (str): The path to the kernel image to be used as the boot source.
-            boot_args (str): The kernel command line arguments to be passed to the kernel on boot.
+            boot_source (BootSource): The boot source configuration for the machine, including kernel 
+                image path and boot arguments.
         """
         data = self.__body_to_dict(boot_source)
         self.__put("boot-source", data)
@@ -120,10 +118,7 @@ class FirecrackerClient:
         Configure a root filesystem drive for the machine.
 
         Args:
-            drive_id (str): The identifier inside firecracker for the drive to be configured.
-            path_on_host (str): The path on the host where the drive's backing file is located.
-            is_root_device (str): True if disk should be the root file drive else False
-            is_read_only (bool): Whether the drive should be configured as read-only.
+            drive (Drive): The drive configuration for the root filesystem.
         """
         data = self.__body_to_dict(drive)
         self.__put(f"drives/{drive.drive_id}", data)
