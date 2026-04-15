@@ -1,6 +1,6 @@
 [project]
 name = "pyrecracker"
-version = "0.5.2"
+version = "0.6.0"
 description = "Python module for creating and controlling micro VMs with Firecracker"
 authors = [
     {name = "Jake Jongewaard",email = "jjongewaard1@gmail.com"}
