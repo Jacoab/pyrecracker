@@ -1,3 +1,4 @@
+import math
 from typing import Optional
 from time import sleep
 from requests.exceptions import ConnectionError, HTTPError
@@ -425,7 +426,9 @@ class VMManager:
     def create_cow_dev_snapshot(
         self,
         snapshot_name: str,
-        base_root_fs: str
+        base_root_fs: str,
+        ratio: float = 0.5,
+        min_mib: int = 512
     ) -> None:
         """
         Create a copy-on-write device snapshot.  The snapshot created by this
@@ -441,15 +444,19 @@ class VMManager:
         """
         self.__host_env.modprobe("dm_snapshot").exec()
         base_image_loop_dev = self.__host_env.losetup(base_root_fs).exec()
+        
+        base_dev_sectors = self.__host_env.blockdev("--getsz", base_image_loop_dev).exec()
+        base_dev_size_bytes = int(base_dev_sectors) * 512
+        base_dev_size_mb = base_dev_size_bytes / (1024 * 1024)
+        cow_dev_size_mb = max(int(base_dev_size_mb * ratio), min_mib)
 
-        self.__host_env.dd("/dev/zero", f"{snapshot_name}.img", count=200).exec()
+        self.__host_env.dd("/dev/zero", f"{snapshot_name}.img", count=math.ceil(cow_dev_size_mb)).exec()
         overlay_loop_dev = self.__host_env.losetup(f"{snapshot_name}.img").exec()
         
-        base_dev_size = self.__host_env.blockdev("--getsz", base_image_loop_dev).exec()
         self.__host_env.create_dev_mapper_snapshot(
             snapshot_name, 
             0, 
-            int(base_dev_size), 
+            int(base_dev_sectors), 
             base_image_loop_dev,
             overlay_loop_dev
         ).exec()
