@@ -450,7 +450,12 @@ class VMManager:
         base_dev_size_mb = base_dev_size_bytes / (1024 * 1024)
         cow_dev_size_mb = max(int(base_dev_size_mb * ratio), min_mib)
 
-        self.__host_env.dd("/dev/zero", f"{snapshot_name}.img", count=math.ceil(cow_dev_size_mb)).exec()
+        self.__host_env.dd(
+            "/dev/zero", 
+            f"{snapshot_name}.img",
+            bs="1M",
+            count=math.ceil(cow_dev_size_mb)
+        ).exec()
         overlay_loop_dev = self.__host_env.losetup(f"{snapshot_name}.img").exec()
         
         self.__host_env.create_dev_mapper_snapshot(
