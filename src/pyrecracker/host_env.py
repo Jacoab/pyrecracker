@@ -413,6 +413,61 @@ class HostEnvironment:
         self.__exec_stack.append(EnvironmentCall(cmd))
         return self
 
+    def cleanup_loop_device(self, device_path: str) -> None:
+        """
+        Remove a loop device from the host.
+
+        Args:
+            device_path (str): The path to the loop device (e.g., '/dev/loop0').
+        """
+        try:
+            cmd = Command("losetup", sudo=True).add_args(["-d", device_path])
+            cmd.run()
+        except CommandError as e:
+            logger.debug(f"Error cleaning up loop device {device_path}: {e}")
+
+    def cleanup_device_mapper(self, mapper_name: str) -> None:
+        """
+        Remove a device mapper snapshot from the host.
+
+        Args:
+            mapper_name (str): The name of the device mapper to remove.
+        """
+        try:
+            cmd = Command("dmsetup", sudo=True).add_args(["remove", "-f", mapper_name])
+            cmd.run()
+        except CommandError as e:
+            logger.debug(f"Error cleaning up device mapper {mapper_name}: {e}")
+
+    def cleanup_tap_device(self, tap_name: str) -> None:
+        """
+        Remove a TAP device from the host.
+
+        Args:
+            tap_name (str): The name of the TAP device to remove.
+        """
+        try:
+            cmd = Command("ip", sudo=True) \
+                .add_arg("tuntap") \
+                .add_args(["del", "dev", tap_name]) \
+                .add_args(["mode", "tap"])
+            cmd.run()
+        except CommandError as e:
+            logger.debug(f"Error cleaning up TAP device {tap_name}: {e}")
+
+    def cleanup_overlay_file(self, file_path: str) -> None:
+        """
+        Remove an overlay file from the host.
+
+        Args:
+            file_path (str): The path to the overlay file to remove.
+        """
+        from pathlib import Path
+        try:
+            Path(file_path).unlink(missing_ok=True)
+        except OSError as e:
+            logger.debug(f"Error cleaning up overlay file {file_path}: {e}")
+
     def stop_processes(self) -> Self:
         """
         Stops all running processes that were spawned with popen.
