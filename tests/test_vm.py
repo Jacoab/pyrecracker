@@ -4,6 +4,7 @@ from requests.exceptions import HTTPError, ConnectionError
 
 from pyrecracker.client_types import ActionType, VMState
 from pyrecracker.vm import VMManager, VMError
+from pyrecracker.snapshot_resource_tracker import SnapshotResourceTracker
 
 
 @pytest.fixture
@@ -372,28 +373,29 @@ class TestVMLifecycle:
 class TestCreateCowDevSnapshot:
 
 	def test_create_cow_dev_snapshot_calls_host_env_methods(self, mock_host_env, mock_client):
-		# Configure batch_exec to return mock_host_env so the initialization chain works
 		mock_host_env.batch_exec.return_value = mock_host_env
 		mock_host_env.modprobe.return_value = mock_host_env
 		mock_host_env.dd.return_value = mock_host_env
 		mock_host_env.losetup.return_value = mock_host_env
 		mock_host_env.blockdev.return_value = mock_host_env
-		mock_host_env.exec.return_value = "8192"  # blockdev returns size as numeric string
+		mock_host_env.create_dev_mapper_snapshot.return_value = mock_host_env
+		mock_host_env.exec.side_effect = [None, "/dev/loop0", "8192", None, "/dev/loop1", None]
 
 		vm = VMManager(
-			socket_path="/tmp/firecracker.sock",
-			kernel_image_path="/path/to/kernel"
+				socket_path="/tmp/firecracker.sock",
+				kernel_image_path="/path/to/kernel"
 		)
 		mock_host_env.reset_mock()
 		mock_host_env.modprobe.return_value = mock_host_env
 		mock_host_env.dd.return_value = mock_host_env
 		mock_host_env.losetup.return_value = mock_host_env
 		mock_host_env.blockdev.return_value = mock_host_env
-		mock_host_env.exec.return_value = "8192"
+		mock_host_env.create_dev_mapper_snapshot.return_value = mock_host_env
+		mock_host_env.exec.side_effect = [None, "/dev/loop0", "8192", None, "/dev/loop1", None]
 
 		vm.create_cow_dev_snapshot(
-			snapshot_name="test_snapshot",
-			base_root_fs="/path/to/rootfs.img"
+				snapshot_name="test_snapshot",
+				base_root_fs="/path/to/rootfs.img"
 		)
 
 		mock_host_env.modprobe.assert_called_once_with("dm_snapshot")
@@ -408,22 +410,24 @@ class TestCreateCowDevSnapshot:
 		mock_host_env.dd.return_value = mock_host_env
 		mock_host_env.losetup.return_value = mock_host_env
 		mock_host_env.blockdev.return_value = mock_host_env
-		mock_host_env.exec.return_value = "8192"
+		mock_host_env.create_dev_mapper_snapshot.return_value = mock_host_env
+		mock_host_env.exec.side_effect = [None, "/dev/loop0", "8192", None, "/dev/loop1", None]
 
 		vm = VMManager(
-			socket_path="/tmp/firecracker.sock",
-			kernel_image_path="/path/to/kernel"
+				socket_path="/tmp/firecracker.sock",
+				kernel_image_path="/path/to/kernel"
 		)
 		mock_host_env.reset_mock()
 		mock_host_env.modprobe.return_value = mock_host_env
 		mock_host_env.dd.return_value = mock_host_env
 		mock_host_env.losetup.return_value = mock_host_env
 		mock_host_env.blockdev.return_value = mock_host_env
-		mock_host_env.exec.return_value = "8192"
+		mock_host_env.create_dev_mapper_snapshot.return_value = mock_host_env
+		mock_host_env.exec.side_effect = [None, "/dev/loop0", "8192", None, "/dev/loop1", None]
 
 		vm.create_cow_dev_snapshot(
-			snapshot_name="test_snapshot",
-			base_root_fs="/path/to/rootfs.img"
+				snapshot_name="test_snapshot",
+				base_root_fs="/path/to/rootfs.img"
 		)
 
 		mock_host_env.create_dev_mapper_snapshot.assert_called_once()
@@ -444,3 +448,134 @@ class TestCreateCowDevSnapshot:
 		drive_config = mock_client.put_drives.call_args[0][0]
 		assert drive_config.drive_id == "rootfs"
 		assert drive_config.path_on_host == "/dev/mapper/test_snapshot"
+
+
+class TestCreateCowDevSnapshotResourceTracking:
+
+	def test_create_cow_dev_snapshot_tracks_loop_devices(self, mock_host_env, mock_client):
+		mock_host_env.batch_exec.return_value = mock_host_env
+		mock_host_env.modprobe.return_value = mock_host_env
+		mock_host_env.dd.return_value = mock_host_env
+		mock_host_env.losetup.return_value = mock_host_env
+		mock_host_env.blockdev.return_value = mock_host_env
+		mock_host_env.create_dev_mapper_snapshot.return_value = mock_host_env
+		mock_host_env.exec.side_effect = [None, "/dev/loop0", "8192", None, "/dev/loop1", None]
+
+		vm = VMManager(
+				socket_path="/tmp/firecracker.sock",
+				kernel_image_path="/path/to/kernel"
+		)
+		mock_host_env.reset_mock()
+		mock_host_env.modprobe.return_value = mock_host_env
+		mock_host_env.dd.return_value = mock_host_env
+		mock_host_env.losetup.return_value = mock_host_env
+		mock_host_env.blockdev.return_value = mock_host_env
+		mock_host_env.create_dev_mapper_snapshot.return_value = mock_host_env
+		mock_host_env.exec.side_effect = [None, "/dev/loop0", "8192", None, "/dev/loop1", None]
+
+		result = vm.create_cow_dev_snapshot(
+				snapshot_name="test_snapshot",
+				base_root_fs="/path/to/rootfs.img"
+		)
+
+		loop_devices = result.get_loop_devices()
+		assert len(loop_devices) == 2
+		assert "/dev/loop0" in loop_devices
+		assert "/dev/loop1" in loop_devices
+
+	def test_create_cow_dev_snapshot_tracks_device_mapper(self, mock_host_env, mock_client):
+		mock_host_env.batch_exec.return_value = mock_host_env
+		mock_host_env.modprobe.return_value = mock_host_env
+		mock_host_env.dd.return_value = mock_host_env
+		mock_host_env.losetup.return_value = mock_host_env
+		mock_host_env.blockdev.return_value = mock_host_env
+		mock_host_env.create_dev_mapper_snapshot.return_value = mock_host_env
+		mock_host_env.exec.side_effect = [None, "/dev/loop0", "8192", None, "/dev/loop1", None]
+
+		vm = VMManager(
+				socket_path="/tmp/firecracker.sock",
+				kernel_image_path="/path/to/kernel"
+		)
+		mock_host_env.reset_mock()
+		mock_host_env.modprobe.return_value = mock_host_env
+		mock_host_env.dd.return_value = mock_host_env
+		mock_host_env.losetup.return_value = mock_host_env
+		mock_host_env.blockdev.return_value = mock_host_env
+		mock_host_env.create_dev_mapper_snapshot.return_value = mock_host_env
+		mock_host_env.exec.side_effect = [None, "/dev/loop0", "8192", None, "/dev/loop1", None]
+
+		result = vm.create_cow_dev_snapshot(
+				snapshot_name="test_snapshot",
+				base_root_fs="/path/to/rootfs.img"
+		)
+
+		assert result.get_device_mapper_name() == "test_snapshot"
+
+	def test_create_cow_dev_snapshot_tracks_overlay_file(self, mock_host_env, mock_client):
+		with patch("pyrecracker.vm.Path") as mock_path:
+			mock_path.return_value.mkdir.return_value = None
+			mock_path.return_value.__truediv__.return_value = "image_files/test_snapshot.img"
+			
+			mock_host_env.batch_exec.return_value = mock_host_env
+			mock_host_env.modprobe.return_value = mock_host_env
+			mock_host_env.dd.return_value = mock_host_env
+			mock_host_env.losetup.return_value = mock_host_env
+			mock_host_env.blockdev.return_value = mock_host_env
+			mock_host_env.create_dev_mapper_snapshot.return_value = mock_host_env
+			mock_host_env.exec.side_effect = [None, "/dev/loop0", "8192", None, "/dev/loop1", None]
+
+			vm = VMManager(
+					socket_path="/tmp/firecracker.sock",
+					kernel_image_path="/path/to/kernel"
+			)
+			mock_host_env.reset_mock()
+			mock_host_env.modprobe.return_value = mock_host_env
+			mock_host_env.dd.return_value = mock_host_env
+			mock_host_env.losetup.return_value = mock_host_env
+			mock_host_env.blockdev.return_value = mock_host_env
+			mock_host_env.create_dev_mapper_snapshot.return_value = mock_host_env
+			mock_host_env.exec.side_effect = [None, "/dev/loop0", "8192", None, "/dev/loop1", None]
+
+			result = vm.create_cow_dev_snapshot(
+					snapshot_name="test_snapshot",
+					base_root_fs="/path/to/rootfs.img"
+			)
+
+			assert result.get_overlay_file() == "image_files/test_snapshot.img"
+
+	def test_create_cow_dev_snapshot_cleans_up_on_error(self, mock_host_env, mock_client):
+		with patch("pyrecracker.vm.Path") as mock_path:
+			mock_path.return_value.mkdir.return_value = None
+			mock_path.return_value.__truediv__.return_value = "image_files/test_snapshot.img"
+			
+			mock_host_env.batch_exec.return_value = mock_host_env
+			mock_host_env.modprobe.return_value = mock_host_env
+			mock_host_env.dd.return_value = mock_host_env
+			mock_host_env.losetup.return_value = mock_host_env
+			mock_host_env.blockdev.return_value = mock_host_env
+			mock_host_env.create_dev_mapper_snapshot.side_effect = Exception("Device mapper creation failed")
+			mock_host_env.cleanup_device_mapper.return_value = None
+			mock_host_env.cleanup_loop_device.return_value = None
+			mock_host_env.cleanup_overlay_file.return_value = None
+			mock_host_env.exec.side_effect = [None, "/dev/loop0", "8192", None, "/dev/loop1", None]
+
+			vm = VMManager(
+				socket_path="/tmp/firecracker.sock",
+				kernel_image_path="/path/to/kernel"
+			)
+			mock_host_env.reset_mock()
+			mock_host_env.modprobe.return_value = mock_host_env
+			mock_host_env.dd.return_value = mock_host_env
+			mock_host_env.losetup.return_value = mock_host_env
+			mock_host_env.blockdev.return_value = mock_host_env
+			mock_host_env.create_dev_mapper_snapshot.side_effect = Exception("Device mapper creation failed")
+			mock_host_env.cleanup_device_mapper.return_value = None
+			mock_host_env.cleanup_loop_device.return_value = None
+			mock_host_env.cleanup_overlay_file.return_value = None
+			mock_host_env.exec.side_effect = [None, "/dev/loop0", "8192", None, "/dev/loop1", None]
+
+			with pytest.raises(VMError):
+				vm.create_cow_dev_snapshot(
+					snapshot_name="test_snapshot",
+					base_root_fs="/path/to/rootfs.img"
+				)

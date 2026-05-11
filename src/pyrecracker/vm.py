@@ -1,9 +1,11 @@
 import math
 from typing import Optional
 from time import sleep
+from pathlib import Path
 from requests.exceptions import ConnectionError, HTTPError
 
 from pyrecracker.client import FirecrackerClient
+from pyrecracker.snapshot_resource_tracker import SnapshotResourceTracker
 from pyrecracker.client_types import (
     VM,
     MachineConfiguration, 
@@ -429,7 +431,7 @@ class VMManager:
         base_root_fs: str,
         ratio: float = 0.5,
         min_mib: int = 512
-    ) -> None:
+    ) -> SnapshotResourceTracker:
         """
         Create a copy-on-write device snapshot.  The snapshot created by this
         method can be used as the root file system for a VM, allowing you to 
@@ -439,32 +441,68 @@ class VMManager:
             snapshot_name (str): The name of the snapshot to create.
             base_root_fs (str): The root file system to base the 
                 overlay off of.
+            ratio (float): Ratio of base image size for CoW device size.
+            min_mib (int): Minimum size in MiB for the CoW device.
         Returns:
-            str: Path to the overlay filesystem
+            SnapshotResourceTracker: Tracker containing paths to created resources.
+        Raises:
+            VMError: If any step of snapshot creation fails.
         """
-        self.__host_env.modprobe("dm_snapshot").exec()
-        base_image_loop_dev = self.__host_env.losetup(base_root_fs).exec()
+        tracker = SnapshotResourceTracker()
+        image_files_dir = Path("image_files")
+        image_files_dir.mkdir(exist_ok=True)
+        overlay_file_path = str(image_files_dir / f"{snapshot_name}.img")
         
-        base_dev_sectors = self.__host_env.blockdev("--getsz", base_image_loop_dev).exec()
-        base_dev_size_bytes = int(base_dev_sectors) * 512
-        base_dev_size_mb = base_dev_size_bytes / (1024 * 1024)
-        cow_dev_size_mb = max(int(base_dev_size_mb * ratio), min_mib)
+        try:
+            self.__host_env.modprobe("dm_snapshot").exec()
+            base_image_loop_dev = self.__host_env.losetup(base_root_fs).exec().strip()
+            tracker.add_loop_device(base_image_loop_dev)
+            
+            base_dev_sectors = self.__host_env.blockdev("--getsz", base_image_loop_dev).exec()
+            base_dev_size_bytes = int(base_dev_sectors) * 512
+            base_dev_size_mb = base_dev_size_bytes / (1024 * 1024)
+            cow_dev_size_mb = max(int(base_dev_size_mb * ratio), min_mib)
 
-        self.__host_env.dd(
-            "/dev/zero", 
-            f"{snapshot_name}.img",
-            bs="1M",
-            count=math.ceil(cow_dev_size_mb)
-        ).exec()
-        overlay_loop_dev = self.__host_env.losetup(f"{snapshot_name}.img").exec()
+            self.__host_env.dd(
+                "/dev/zero", 
+                overlay_file_path,
+                bs="1M",
+                count=math.ceil(cow_dev_size_mb)
+            ).exec()
+            tracker.add_overlay_file(overlay_file_path)
+            
+            overlay_loop_dev = self.__host_env.losetup(overlay_file_path).exec().strip()
+            tracker.add_loop_device(overlay_loop_dev)
+            
+            self.__host_env.create_dev_mapper_snapshot(
+                snapshot_name, 
+                0, 
+                int(base_dev_sectors), 
+                base_image_loop_dev,
+                overlay_loop_dev
+            ).exec()
+            tracker.add_device_mapper(snapshot_name)
+            
+            return tracker
+        except Exception as e:
+            self.__cleanup_cow_dev_snapshot_partial(tracker)
+            raise VMError(f"Error creating CoW device snapshot '{snapshot_name}'", str(e))
+    
+    def __cleanup_cow_dev_snapshot_partial(self, tracker: SnapshotResourceTracker) -> None:
+        """
+        Clean up partial resources created during failed CoW snapshot creation.
         
-        self.__host_env.create_dev_mapper_snapshot(
-            snapshot_name, 
-            0, 
-            int(base_dev_sectors), 
-            base_image_loop_dev,
-            overlay_loop_dev
-        ).exec()
+        Args:
+            tracker: Resource tracker containing created resources to clean up.
+        """
+        if tracker.get_device_mapper_name():
+            self.__host_env.cleanup_device_mapper(tracker.get_device_mapper_name())
+        
+        for loop_dev in tracker.get_loop_devices():
+            self.__host_env.cleanup_loop_device(loop_dev)
+        
+        if tracker.get_overlay_file():
+            self.__host_env.cleanup_overlay_file(tracker.get_overlay_file())
 
     def load_cow_dev_snapshot(
         self, 
