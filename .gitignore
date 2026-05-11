@@ -4,3 +4,4 @@ firecracker/
 .vscode/
 logs/
 snapshot/
+image_files/
